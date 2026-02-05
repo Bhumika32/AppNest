@@ -1,0 +1,368 @@
+<!--
+app/templates/tools/rashi.html
+
+Rashi Tool UI (AppNest)
+
+✅ Upgraded:
+- Name + Birthplace + Birth Date + Birth Time
+- OSM Autocomplete (FREE)
+- Roast mode always ON 🔥
+- Short place shown
+- More facts + roast + catchy cards
+-->
+
+{% extends "base.html" %}
+{% block title %}Rashi Tool | AppNest{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-9 col-lg-7">
+
+    <div class="auth-card">
+
+      <!-- Heading -->
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div>
+          <h2 class="fw-bold mb-1">Rashi Tool 🔮</h2>
+          <p class="text-white-50 mb-0">
+            Birthplace + date + time → Rashi facts + roast 😄🔥
+          </p>
+        </div>
+
+        <div class="text-end small text-white-50">
+          <div class="fw-semibold">Mode</div>
+          🔥 Roast (Default)
+        </div>
+      </div>
+
+      <form method="POST">
+
+        <!-- Name -->
+        <div class="mb-3">
+          <label class="form-label">Your Name</label>
+          <input
+            type="text"
+            class="form-control"
+            name="name"
+            placeholder="e.g. Bhumi"
+            value="{{ entered_name or '' }}"
+            required
+          />
+        </div>
+
+        <!-- Birth Place -->
+        <div class="mb-3">
+          <label class="form-label">Birth Place</label>
+
+          <input
+            type="text"
+            class="form-control"
+            id="birthPlaceInput"
+            name="birth_place"
+            placeholder="Start typing your city..."
+            autocomplete="off"
+            value="{{ birth_place or '' }}"
+            required
+          />
+
+          <div class="form-text text-white-50 mt-1" id="placeHint">
+            Start typing your city… we’ll do the guessing 😄
+          </div>
+
+          <div
+            id="placesDropdown"
+            class="list-group mt-2"
+            style="display:none; max-height: 220px; overflow-y: auto;"
+          ></div>
+
+          <input type="hidden" name="birth_lat" id="birthLat" value="{{ birth_lat or '' }}">
+          <input type="hidden" name="birth_lon" id="birthLon" value="{{ birth_lon or '' }}">
+        </div>
+
+        <!-- Birth Date -->
+        <div class="mb-3">
+          <label class="form-label">Birth Date</label>
+          <input
+            type="date"
+            class="form-control"
+            name="birth_date"
+            value="{{ birth_date or '' }}"
+            required
+          />
+          <div class="form-text text-white-50">
+            Without date? Bro that’s half horoscope 💀
+          </div>
+        </div>
+
+        <!-- Birth Time -->
+        <div class="mb-3">
+          <label class="form-label">Birth Time</label>
+          <input
+            type="time"
+            class="form-control"
+            name="birth_time"
+            value="{{ birth_time or '' }}"
+            required
+          />
+          <div class="form-text text-white-50">
+            Without time, Rashi is like Maggi without masala 😄
+          </div>
+        </div>
+
+        <button class="btn btn-primary w-100" type="submit">
+          Calculate Rashi
+        </button>
+      </form>
+
+      {% if result %}
+      <hr class="my-4 opacity-25"/>
+
+      <div class="d-flex align-items-center justify-content-between">
+        <h4 class="fw-bold mb-2">Result ✅</h4>
+
+        <button
+          type="button"
+          class="btn btn-outline-light btn-sm"
+          onclick="copyRashiResult()"
+          title="Copy result"
+        >
+          📋 Copy
+        </button>
+      </div>
+
+      <div class="p-3 rounded-3 mt-2"
+        style="background: rgba(255,255,255,0.04);
+               border: 1px solid rgba(255,255,255,0.08);">
+
+        <!-- Headline -->
+        <div class="p-3 rounded-3 mb-3"
+             style="background: rgba(0,0,0,0.30);">
+          <div class="fs-5 fw-bold">✨ {{ result.headline }}</div>
+          <div class="text-white-50 small mt-1">
+            📍 {{ result.short_place }}
+            &nbsp; | &nbsp; 📅 {{ result.birth_date }}
+            &nbsp; | &nbsp; ⏰ {{ result.birth_time }}
+          </div>
+        </div>
+
+        <!-- Main Rashi -->
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="fs-4 fw-bold">
+            Your Rashi: {{ result.rashi }}
+          </div>
+          <div class="badge bg-dark text-white border border-white-25">
+            {{ result.vibe_meter }}
+          </div>
+        </div>
+
+        <div class="d-flex flex-column gap-2">
+
+          <div>
+            ✅ Real Fact:
+            <b>{{ result.real_fact }}</b>
+          </div>
+
+          <div class="text-warning">
+            🔥 Roast:
+            <b>{{ result.roast }}</b>
+          </div>
+
+          <hr class="opacity-25 my-2"/>
+
+          <div>
+            💪 Strengths:
+            <ul class="mb-0 mt-1">
+              {% for s in result.strengths %}
+              <li><b>{{ s }}</b></li>
+              {% endfor %}
+            </ul>
+          </div>
+
+          <div>
+            😭 Weakness:
+            <b>{{ result.weakness }}</b>
+          </div>
+
+          <div>
+            ❤️ Love Style:
+            <b>{{ result.love_style }}</b>
+          </div>
+
+          <div>
+            💼 Career Vibe:
+            <b>{{ result.career_vibe }}</b>
+          </div>
+
+          <div class="text-info">
+            🎨 Lucky Color:
+            <b>{{ result.lucky_color }}</b>
+            &nbsp; | &nbsp;
+            🔢 Lucky Number:
+            <b>{{ result.lucky_number }}</b>
+          </div>
+
+        </div>
+      </div>
+
+      <script>
+        function copyRashiResult() {
+          const text =
+`{{ result.headline }}
+
+Rashi: {{ result.rashi }}
+Place: {{ result.short_place }}
+Birth Date: {{ result.birth_date }}
+Birth Time: {{ result.birth_time }}
+
+Real Fact: {{ result.real_fact }}
+Roast: {{ result.roast }}
+
+Strengths: {{ result.strengths | join(", ") }}
+Weakness: {{ result.weakness }}
+Love Style: {{ result.love_style }}
+Career Vibe: {{ result.career_vibe }}
+Lucky Color: {{ result.lucky_color }}
+Lucky Number: {{ result.lucky_number }}`;
+
+          navigator.clipboard.writeText(text)
+            .then(() => alert("Copied ✅"))
+            .catch(() => alert("Copy failed ❌"));
+        }
+      </script>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // -----------------------------
+  // OSM Autocomplete (Roast Mode)
+  // -----------------------------
+
+  const placeInput = document.getElementById("birthPlaceInput");
+  const hintBox = document.getElementById("placeHint");
+  const dropdown = document.getElementById("placesDropdown");
+
+  const birthLat = document.getElementById("birthLat");
+  const birthLon = document.getElementById("birthLon");
+
+  let timeout = null;
+
+  function setHint(msg, type = "muted") {
+    hintBox.innerText = msg;
+
+    hintBox.classList.remove(
+      "text-white-50", "text-info", "text-warning", "text-danger", "text-success"
+    );
+
+    if (type === "info") hintBox.classList.add("text-info");
+    else if (type === "warning") hintBox.classList.add("text-warning");
+    else if (type === "danger") hintBox.classList.add("text-danger");
+    else if (type === "success") hintBox.classList.add("text-success");
+    else hintBox.classList.add("text-white-50");
+  }
+
+  function moodMessage(text) {
+    if (text.length < 3) return "Bro type properly 😭 (3+ letters)";
+    return "Searching locations like a pro 😎📍";
+  }
+
+  function loadingMessage() {
+    return "Searching… hold your chai ☕";
+  }
+
+  function noResultMessage() {
+    return "No matches found 😭 Try a bigger area name / nearby city.";
+  }
+
+  function errorMessage() {
+    return "Server error ⚠️ Map server is sleeping 😭 try again.";
+  }
+
+  function successMessage() {
+    return "Locked ✅ Location selected like a pro 😎🔥";
+  }
+
+  function hideDropdown() {
+    dropdown.style.display = "none";
+    dropdown.innerHTML = "";
+  }
+
+  function showDropdown(items) {
+    dropdown.innerHTML = "";
+    dropdown.style.display = "block";
+
+    items.forEach(place => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "list-group-item list-group-item-action";
+      btn.innerText = place.display_name;
+
+      btn.onclick = () => {
+        placeInput.value = place.display_name;
+        birthLat.value = place.lat;
+        birthLon.value = place.lon;
+
+        setHint(successMessage(), "success");
+        hideDropdown();
+      };
+
+      dropdown.appendChild(btn);
+    });
+  }
+
+  async function fetchPlaces(query) {
+    setHint(loadingMessage(), "info");
+
+    try {
+      const res = await fetch(`/tools/rashi/api/places?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+
+      if (data.error) {
+        setHint(errorMessage(), "danger");
+        hideDropdown();
+        return;
+      }
+
+      if (!Array.isArray(data) || data.length === 0) {
+        setHint(noResultMessage(), "warning");
+        hideDropdown();
+        return;
+      }
+
+      setHint("Select your place from the list 👇", "info");
+      showDropdown(data);
+
+    } catch (err) {
+      setHint(errorMessage(), "danger");
+      hideDropdown();
+    }
+  }
+
+  placeInput.addEventListener("input", () => {
+    const text = placeInput.value.trim();
+    clearTimeout(timeout);
+
+    birthLat.value = "";
+    birthLon.value = "";
+
+    setHint(moodMessage(text), "muted");
+
+    if (text.length < 3) {
+      hideDropdown();
+      return;
+    }
+
+    timeout = setTimeout(() => {
+      fetchPlaces(text);
+    }, 450);
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!dropdown.contains(e.target) && e.target !== placeInput) {
+      hideDropdown();
+    }
+  });
+</script>
+{% endblock %}

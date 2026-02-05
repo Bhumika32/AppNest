@@ -1,0 +1,72 @@
+/*
+app/static/css/main.css
+
+AppNest global styling.
+Keep it clean and consistent.
+*/
+
+:root {
+  --appnest-bg: #0b1220;
+  --appnest-card: rgba(255, 255, 255, 0.08);
+  --appnest-border: rgba(255, 255, 255, 0.15);
+  --appnest-text: #f5f7ff;
+}
+
+body {
+  background: var(--appnest-bg);
+  color: var(--appnest-text);
+}
+
+.appnest-navbar {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--appnest-border);
+}
+
+.appnest-logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.auth-card {
+  background: var(--appnest-card);
+  border: 1px solid var(--appnest-border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0px 12px 30px rgba(0, 0, 0, 0.3);
+}
+
+.auth-card input {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--appnest-border);
+  color: white;
+}
+
+.auth-card input:focus {
+  outline: none;
+  box-shadow: none;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.auth-subtitle {
+  opacity: 0.8;
+}
+.appnest-logo-fallback {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--appnest-border);
+}
+
+/* OTP input improvements */
+.otp-input {
+  letter-spacing: 10px;
+  font-size: 22px;
+  padding: 12px;
+}
