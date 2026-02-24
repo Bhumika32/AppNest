@@ -1,0 +1,66 @@
+# ======================
+# ENV FILES
+# ======================
+.env
+
+# ======================
+# Python Backend
+# ======================
+Backend/venv/
+Backend/__pycache__/
+Backend/*.pyc
+
+# ======================
+# React Frontend
+# ======================
+Frontend/node_modules/
+Frontend/dist/
+Frontend/build/
+Frontend/.vite/
+
+# ======================
+# System / IDE
+# ======================
+.vscode/*
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+.vscode/
+# ======================
+# Logs
+# ======================
+*.log
+# Python cache (VERY IMPORTANT)
+__pycache__/
+*.py[cod]
+*$py.class
+# Node
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+backend/.venv/
+
+# Build
+dist/
+build/
+.vite/
+
+*.db
+backend/instance/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
