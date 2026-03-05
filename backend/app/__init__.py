@@ -46,14 +46,15 @@ def create_app():
     jwt.init_app(app)
     # Allow CORS for frontend with credentials (cookies)
     # Support multiple common Vite ports in case 5173 is busy
+    allowed_origins = app.config.get("CORS_ORIGINS", [
+        "http://localhost:5173", 
+        "http://localhost:5174", 
+        "http://localhost:5175",
+        "http://localhost:5176",
+    ])
     CORS(app, supports_credentials=True, resources={
         r"/api/*": {
-            "origins": [
-                "http://localhost:5173", 
-                "http://localhost:5174", 
-                "http://localhost:5175",
-                "http://localhost:5176",
-            ]
+            "origins": allowed_origins
         }
     })
 
@@ -61,7 +62,37 @@ def create_app():
     with app.app_context():
         db.create_all()
         # Modules are seed-based or dynamic, no need for manifest scanning now
-        pass
+        
+        # Auto-register module executors
+        from app.platform.module_registry import register_executor
+        from app.services.tools.bmi_executor import BMIExecutor
+        from app.services.tools.currency_executor import CurrencyExecutor
+        from app.services.tools.age_executor import AgeExecutor
+        from app.services.tools.rashi_executor import RashiExecutor
+        from app.services.tools.weather_executor import WeatherExecutor
+        from app.services.tools.unit_converter_executor import UnitConverterExecutor
+        
+        from app.services.games.tictactoe_executor import TicTacToeExecutor
+        from app.services.games.snake_executor import SnakeExecutor
+        from app.services.games.flappy_bird_executor import FlappyBirdExecutor
+        from app.services.games.brick_breaker_executor import BrickBreakerExecutor
+        
+        from app.services.tools.extra_executors import CGPAExecutor, JokeExecutor, TranslatorExecutor
+        
+        register_executor(BMIExecutor.module_key, BMIExecutor)
+        register_executor(CurrencyExecutor.module_key, CurrencyExecutor)
+        register_executor(AgeExecutor.module_key, AgeExecutor)
+        register_executor(RashiExecutor.module_key, RashiExecutor)
+        register_executor(WeatherExecutor.module_key, WeatherExecutor)
+        register_executor(UnitConverterExecutor.module_key, UnitConverterExecutor)
+        register_executor(CGPAExecutor.module_key, CGPAExecutor)
+        register_executor(JokeExecutor.module_key, JokeExecutor)
+        register_executor(TranslatorExecutor.module_key, TranslatorExecutor)
+        
+        register_executor(TicTacToeExecutor.module_key, TicTacToeExecutor)
+        register_executor(SnakeExecutor.module_key, SnakeExecutor)
+        register_executor(FlappyBirdExecutor.module_key, FlappyBirdExecutor)
+        register_executor(BrickBreakerExecutor.module_key, BrickBreakerExecutor)
 
 
     # -------------------------

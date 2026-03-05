@@ -4,7 +4,7 @@
  * Toast types: 'xp' | 'level_up' | 'streak' | 'achievement' | 'info' | 'error'
  */
 import { create } from 'zustand';
-import notificationsApi from '../api/notificationsApi';
+import { NotificationService } from '../services/api';
 
 // Toast auto-dismiss durations (ms)
 const DURATION = {
@@ -46,7 +46,7 @@ export const useNotificationStore = create((set, get) => ({
     markAsRead: async (id) => {
         try {
             // attempt backend update
-            await notificationsApi.markAsRead(id);
+            await NotificationService.markAsRead(id);
         } catch (e) {
             // ignore network errors — still update UI optimistically
             console.warn('markAsRead failed:', e);
@@ -59,7 +59,7 @@ export const useNotificationStore = create((set, get) => ({
     // Mark all as read (backend + local)
     markAllAsRead: async () => {
         try {
-            await notificationsApi.markAllAsRead();
+            await NotificationService.markAllAsRead();
         } catch (e) {
             console.warn('markAllAsRead failed:', e);
         }
@@ -71,7 +71,7 @@ export const useNotificationStore = create((set, get) => ({
     // Clear all notifications (delete on backend and locally)
     clearAll: async () => {
         try {
-            await notificationsApi.clearAll();
+            await NotificationService.clearAll();
         } catch (e) {
             console.warn('clearAll failed:', e);
         }
@@ -84,7 +84,7 @@ export const useNotificationStore = create((set, get) => ({
     // Fetch notifications from backend and populate store
     fetchNotifications: async (limit = 50, unreadOnly = false) => {
         try {
-            const resp = await notificationsApi.getNotifications(limit, unreadOnly);
+            const resp = await NotificationService.getAll(limit, unreadOnly);
             const data = resp.data || {};
             const list = (data.notifications || []).map((n) => ({
                 id: n.id,

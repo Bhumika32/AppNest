@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore.js';
 import { Lock, Mail, ChevronRight } from 'lucide-react';
-import api from '../api/axios';
+import api from '../services/apiClient';
 import { useTheme } from '../context/ThemeContext';
 
 const Login = () => {

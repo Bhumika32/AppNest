@@ -3,14 +3,19 @@ import { motion } from 'framer-motion';
 import { Search, Command, Activity, Shield } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
 import { useUserStore } from '../../store/userStore.js';
-import { useRealmStore } from '../../store/realmStore.js';
+import { useUIStore } from '../../store/uiStore.js';
 import { USER_REALMS, ADMIN_REALMS } from '../../app/realmConstants.js';
 import NotificationPanel from '../../components/NotificationPanel.jsx';
 
 const Header = () => {
-    const { user, role } = useAuthStore();
-    const { xp, level, nextLevelXp, title } = useUserStore();
-    const { currentRealm } = useRealmStore();
+    const user = useAuthStore(state => state.user);
+    const role = useAuthStore(state => state.role);
+    const xp = useUserStore(state => state.xp);
+    const level = useUserStore(state => state.level);
+    const nextLevelXp = useUserStore(state => state.nextLevelXp);
+    const title = useUserStore(state => state.title);
+    const currentRealm = useUIStore(state => state.currentRealm);
+    const isDashboardLoading = useUserStore(state => state.isLoading);
 
     const activeRealm = [...USER_REALMS, ...ADMIN_REALMS].find(r => r.id === currentRealm);
 

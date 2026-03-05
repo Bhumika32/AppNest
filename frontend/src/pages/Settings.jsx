@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
-import profileApi from '../api/profileApi';
+import { UserService } from '../services/api';
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -73,7 +73,7 @@ const Settings = () => {
   const handleSaveProfile = async () => {
     try {
       setLoading(true);
-      await profileApi.updateProfile(profileForm);
+      await UserService.updateProfile(profileForm);
       setSaveStatus('Profile updated successfully!');
       setTimeout(() => setSaveStatus(null), 3000);
     } catch (error) {
@@ -153,11 +153,10 @@ const Settings = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-full px-6 py-4 flex items-center gap-3 transition-all border-l-4 ${
-                      activeTab === tab.id
+                    className={`w-full px-6 py-4 flex items-center gap-3 transition-all border-l-4 ${activeTab === tab.id
                         ? 'bg-neon-blue bg-opacity-20 border-neon-blue text-neon-blue'
                         : 'bg-transparent border-transparent text-slate-400 hover:bg-slate-700 hover:bg-opacity-30'
-                    }`}
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                     <span className="font-semibold">{tab.label}</span>
@@ -309,14 +308,12 @@ const Settings = () => {
                           </div>
                           <button
                             onClick={() => handleNotificationChange(item.key)}
-                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all ${
-                              notificationPrefs[item.key] ? 'bg-neon-green' : 'bg-slate-600'
-                            }`}
+                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all ${notificationPrefs[item.key] ? 'bg-neon-green' : 'bg-slate-600'
+                              }`}
                           >
                             <span
-                              className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                                notificationPrefs[item.key] ? 'translate-x-7' : 'translate-x-1'
-                              }`}
+                              className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${notificationPrefs[item.key] ? 'translate-x-7' : 'translate-x-1'
+                                }`}
                             />
                           </button>
                         </div>
@@ -349,14 +346,12 @@ const Settings = () => {
                           </div>
                           <button
                             onClick={() => handlePrivacyChange(item.key)}
-                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all ${
-                              privacySettings[item.key] ? 'bg-neon-blue' : 'bg-slate-600'
-                            }`}
+                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all ${privacySettings[item.key] ? 'bg-neon-blue' : 'bg-slate-600'
+                              }`}
                           >
                             <span
-                              className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                                privacySettings[item.key] ? 'translate-x-7' : 'translate-x-1'
-                              }`}
+                              className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${privacySettings[item.key] ? 'translate-x-7' : 'translate-x-1'
+                                }`}
                             />
                           </button>
                         </div>
@@ -389,14 +384,12 @@ const Settings = () => {
                           </div>
                           <button
                             onClick={() => handleDisplayChange(item.key, !displaySettings[item.key])}
-                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all ${
-                              displaySettings[item.key] ? 'bg-neon-green' : 'bg-slate-600'
-                            }`}
+                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all ${displaySettings[item.key] ? 'bg-neon-green' : 'bg-slate-600'
+                              }`}
                           >
                             <span
-                              className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                                displaySettings[item.key] ? 'translate-x-7' : 'translate-x-1'
-                              }`}
+                              className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${displaySettings[item.key] ? 'translate-x-7' : 'translate-x-1'
+                                }`}
                             />
                           </button>
                         </div>
@@ -410,11 +403,10 @@ const Settings = () => {
                             <button
                               key={size}
                               onClick={() => handleDisplayChange('fontSize', size)}
-                              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                                displaySettings.fontSize === size
+                              className={`px-4 py-2 rounded-lg font-semibold transition-all ${displaySettings.fontSize === size
                                   ? 'bg-neon-blue text-black'
                                   : 'bg-slate-600 text-white hover:bg-slate-500'
-                              }`}
+                                }`}
                             >
                               {size.charAt(0).toUpperCase() + size.slice(1)}
                             </button>

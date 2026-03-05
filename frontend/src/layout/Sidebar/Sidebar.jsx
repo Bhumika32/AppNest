@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Settings, Moon, Sun, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
-import { useRealmStore } from '../../store/realmStore.js';
+import { useUIStore } from '../../store/uiStore.js';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { USER_REALMS, ADMIN_REALMS } from '../../app/realmConstants.js';
 //import Settings from "../pages/Settings"
@@ -49,8 +49,12 @@ const NavItem = ({ realm, isSidebarCollapsed, currentRealm, setCurrentRealm, nav
 const Sidebar = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { role, logout } = useAuthStore();
-    const { isSidebarCollapsed, toggleSidebar, currentRealm, setCurrentRealm } = useRealmStore();
+    const role = useAuthStore(state => state.role);
+    const logout = useAuthStore(state => state.logout);
+    const isSidebarCollapsed = useUIStore(state => state.isSidebarCollapsed);
+    const toggleSidebar = useUIStore(state => state.toggleSidebar);
+    const currentRealm = useUIStore(state => state.currentRealm);
+    const setCurrentRealm = useUIStore(state => state.setCurrentRealm);
     const { isDark, toggleTheme } = useTheme();
 
     const navProps = { isSidebarCollapsed, currentRealm, setCurrentRealm, navigate, location };

@@ -13,6 +13,8 @@ class OTPService:
     OTP_LENGTH = 6
     OTP_EXPIRY_MINUTES = 10
     OTP_RESEND_COOLDOWN_SECONDS = 60
+    MAX_DAILY_OTPS = 5
+    MAX_FAILED_ATTEMPTS = 3
 
     @staticmethod
     def _utc_now() -> datetime:
@@ -32,9 +34,23 @@ class OTPService:
         user = User.query.filter_by(email=email).first()
         if not user:
             raise ValueError("User not found for OTP generation")
+            
+        # Abuse Protection: Check daily limit
+        today_start = cls._utc_now().replace(hour=0, minute=0, second=0, microsecond=0)
+        daily_count = OTPToken.query.filter(
+            OTPToken.user_id == user.id,
+            OTPToken.purpose == purpose,
+            OTPToken.created_at >= today_start
+        ).count()
+        
+        if daily_count >= cls.MAX_DAILY_OTPS:
+            # We don't raise error to avoid leaking user info easily, but silently refuse
+            # Or raise if we want the controller to handle it
+            raise ValueError(f"Daily limit of {cls.MAX_DAILY_OTPS} OTPs reached. Try again tomorrow.")
 
         # Invalidate previous unused OTPs for this purpose
-        OTPToken.query.filter_by(user_id=user.id, purpose=purpose, used=False).update({"used": True})
+        for old_otp in OTPToken.query.filter_by(user_id=user.id, purpose=purpose, used=False).all():
+            old_otp.used = True
 
         otp = cls.generate_otp()
         hashed_otp = hash_data(otp)
@@ -95,8 +111,17 @@ class OTPService:
             otp_token.used = True
             db.session.commit()
             return False, "OTP has expired. Please request a new one."
+            
+        # Implementing basic abuse protection for failed attempts
+        if getattr(otp_token, 'failed_attempts', 0) >= cls.MAX_FAILED_ATTEMPTS:
+             otp_token.used = True
+             db.session.commit()
+             return False, "Too many failed attempts. OTP invalidated. Request a new one."
 
         if not verify_hash(submitted_otp, otp_token.otp_hash):
+            if hasattr(otp_token, 'failed_attempts'):
+                otp_token.failed_attempts += 1
+                db.session.commit()
             return False, "Invalid OTP."
 
         # Mark as used

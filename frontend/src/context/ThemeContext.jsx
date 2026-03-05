@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import useThemeStore from '../store/themeStore';
+import { useUIStore } from '../store/uiStore';
 
 const ThemeContext = createContext();
 
@@ -13,13 +13,13 @@ export const ThemeProvider = ({ children }) => {
   const [mounted, setMounted] = useState(false);
 
   // Dashboard store (proxied)
-  const { currentThemeId, setTheme: setDashboardTheme, currentTheme, getAllThemes } = useThemeStore();
+  const { currentThemeId, setTheme: setDashboardTheme, currentTheme, getAllThemes } = useUIStore();
 
   // Load theme from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('appnest-theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
+
     if (savedTheme) {
       // Accept both legacy short values and canonical ones
       if (savedTheme === 'dark' || savedTheme === 'dark-moon') setTheme(THEMES.DARK_MOON);
@@ -41,7 +41,7 @@ export const ThemeProvider = ({ children }) => {
   const themeName = isDark ? 'Dark Moon Realm' : 'Fantasy Shrine World';
 
   const toggleTheme = () => {
-    setTheme(prev => 
+    setTheme(prev =>
       prev === THEMES.DARK_MOON ? THEMES.FANTASY_SHRINE : THEMES.DARK_MOON
     );
   };

@@ -73,8 +73,7 @@ def update_my_profile():
             avatar_url=data.get("avatar_url"),
         )
 
-        db.session.commit()
-
+        # The service call now handles the DB commit.
         return jsonify(
             message="Profile updated successfully",
             profile={
@@ -125,9 +124,8 @@ def upload_avatar():
         # Generate external URL
         avatar_url = url_for('static', filename=f'uploads/avatars/{unique_name}', _external=True)
 
-        # Update user and commit
-        user.avatar_url = avatar_url
-        db.session.commit()
+        # Update user and commit using service
+        UserProfileService.update_avatar(user, avatar_url)
 
         return jsonify(success=True, avatar_url=avatar_url), 200
     except Exception as e:

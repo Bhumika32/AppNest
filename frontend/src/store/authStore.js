@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import * as authApi from '../api/auth.api.js';
+import { AuthService } from '../services/api';
 
 // Base store with persistence
 const useAuthStore = create(
@@ -20,7 +20,7 @@ const useAuthStore = create(
       login: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await authApi.loginUser({ email, password });
+          const response = await AuthService.login({ email, password });
           const { user, access_token } = response.data;
 
           set({
@@ -43,7 +43,7 @@ const useAuthStore = create(
       checkAuth: async () => {
         set({ isInitializing: true });
         try {
-          const response = await authApi.getMe();
+          const response = await AuthService.getMe();
           const { user } = response.data;
           set({
             user,
@@ -65,7 +65,7 @@ const useAuthStore = create(
 
       logout: async () => {
         try {
-          await authApi.logoutUser();
+          await AuthService.logout();
         } catch (e) {
           console.error("Logout failed", e);
         } finally {
@@ -82,7 +82,7 @@ const useAuthStore = create(
       register: async (username, email, password) => {
         set({ isLoading: true, error: null });
         try {
-          await authApi.registerUser({ username, email, password });
+          await AuthService.register({ username, email, password });
           set({ isLoading: false });
           return true;
         } catch (error) {
@@ -97,7 +97,7 @@ const useAuthStore = create(
       verifyOtp: async (email, otp) => {
         set({ isLoading: true, error: null });
         try {
-          await authApi.verifyOtp({ email, otp });
+          await AuthService.verifyOtp({ email, otp });
           set({ isLoading: false });
           return true;
         } catch (error) {
@@ -111,7 +111,7 @@ const useAuthStore = create(
 
       resendOtp: async (email) => {
         try {
-          await authApi.resendOtp(email);
+          await AuthService.resendOtp(email);
           return true;
         } catch (error) {
           set({ error: error.response?.data?.error || 'Failed to resend OTP.' });
@@ -122,7 +122,7 @@ const useAuthStore = create(
       forgotPassword: async (email) => {
         set({ isLoading: true, error: null });
         try {
-          await authApi.forgotPassword(email);
+          await AuthService.forgotPassword(email);
           set({ isLoading: false });
           return true;
         } catch (error) {
@@ -137,7 +137,7 @@ const useAuthStore = create(
       resetPassword: async (email, otp, newPassword) => {
         set({ isLoading: true, error: null });
         try {
-          await authApi.resetPassword(email, otp, newPassword);
+          await AuthService.resetPassword({ email, otp, newPassword });
           set({ isLoading: false });
           return true;
         } catch (error) {
@@ -159,6 +159,16 @@ const useAuthStore = create(
         isAuthenticated: state.isAuthenticated,
         role: state.role
       }),
+      onRehydrateStorage: () => (state) => {
+        // This runs after Zustand has hydrated data from localStorage
+        if (state && state.token) {
+          console.log('[AuthStore] Hydrated from localStorage. Verifying backend...');
+          setTimeout(() => state.checkAuth(), 0);
+        } else if (state) {
+          console.log('[AuthStore] No token found in localStorage.');
+          state.isInitializing = false;
+        }
+      }
     }
   )
 );
@@ -171,20 +181,3 @@ const useAuthStore = create(
  * - Subscriptions: useAuthStore.subscribe()
  */
 export { useAuthStore };
-
-// ✅ Trigger auth hydration on app startup (BEFORE React renders)
-// Key: Only verify if we don't already have a logged-in user from localStorage
-if (typeof window !== 'undefined') {
-  // Brief delay to ensure persist middleware has restored from localStorage
-  setTimeout(() => {
-    const currentState = useAuthStore.getState();
-    // If we have a user and token, we're already logged in (restored from storage)
-    // Just verify it's still valid with backend
-    if (currentState.user && currentState.token) {
-      console.log('[AuthStore] User restored from localStorage, verifying with backend...');
-      useAuthStore.getState().checkAuth?.();
-    } else {
-      console.log('[AuthStore] No user in localStorage, skipping verification');
-    }
-  }, 0);
-}

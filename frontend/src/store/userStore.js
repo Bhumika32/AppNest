@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import profileApi from '../api/profileApi';
+import { UserService } from '../services/api';
 
 export const useUserStore = create((set) => ({
     xp: 0,
@@ -22,10 +22,14 @@ export const useUserStore = create((set) => ({
     fetchDashboard: async () => {
         set({ isLoading: true, error: null });
         try {
-            const { data } = await profileApi.getDashboardSummary();
+            const { data } = await UserService.getDashboardSummary();
+            const currentLevel = data.level || 1;
+            const computedNextLevelXp = Math.floor(100 + Math.pow(currentLevel, 1.5) * 40);
+
             set({
                 xp: data.xp || 0,
-                level: data.level || 1,
+                level: currentLevel,
+                nextLevelXp: computedNextLevelXp,
                 rank: data.rank || '#???',
                 title: data.title || 'CYBER SCOUT',
                 uptime: data.uptime || '0h',

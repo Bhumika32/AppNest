@@ -13,6 +13,7 @@ Features:
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Dict, List
+from app.core.extensions import db
 
 
 @dataclass
@@ -93,7 +94,15 @@ class UserProfileService:
         if avatar_url is not None:
             user_obj.avatar_url = avatar_url
 
+        db.session.commit()
+
         return UserProfileService.format_user_profile(user_obj)
+
+    @staticmethod
+    def update_avatar(user_obj, avatar_url: str) -> None:
+        """Update just the user's avatar URL."""
+        user_obj.avatar_url = avatar_url
+        db.session.commit()
 
     @staticmethod
     def get_user_statistics(user_obj) -> Dict[str, any]:

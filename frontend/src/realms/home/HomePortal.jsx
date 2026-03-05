@@ -30,8 +30,14 @@ const RealmCard = ({ title, subtitle, icon: Icon, color }) => (
 );
 
 const HomePortal = () => {
-    const { user } = useAuthStore();
-    const { rank, uptime, performanceHistory, dailyQuests, isLoading, error, fetchDashboard } = useUserStore();
+    const user = useAuthStore(state => state.user);
+    const rank = useUserStore(state => state.rank);
+    const uptime = useUserStore(state => state.uptime);
+    const performanceHistory = useUserStore(state => state.performanceHistory);
+    const dailyQuests = useUserStore(state => state.dailyQuests);
+    const isLoading = useUserStore(state => state.isLoading);
+    const error = useUserStore(state => state.error);
+    const fetchDashboard = useUserStore(state => state.fetchDashboard);
 
     React.useEffect(() => {
         fetchDashboard();
@@ -131,11 +137,11 @@ const HomePortal = () => {
                         </div>
                     </div>
 
-                    <div className="h-[300px] w-full">
+                    <div className="h-[300px] w-full min-h-[300px]">
                         {isLoading ? (
                             <ChartSkeleton />
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height={300}>
                                 <AreaChart data={performanceHistory}>
                                     <defs>
                                         <linearGradient id="colorXp" x1="0" y1="0" x2="0" y2="1">

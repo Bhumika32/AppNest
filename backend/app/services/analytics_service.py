@@ -31,16 +31,32 @@ class AnalyticsService:
 
     @staticmethod
     def get_user_growth_data():
-        """Returns time-series user growth from DB."""
+        """Returns time-series user growth from DB using a single aggregated query."""
+        fourteen_days_ago = datetime.utcnow().date() - timedelta(days=13)
+        
+        # Determine total users before the 14-day window
+        base_count = User.query.filter(func.date(User.created_at) < fourteen_days_ago).count()
+        
+        # Group new users by day
+        daily_new_users = db.session.query(
+            func.date(User.created_at).label('day'),
+            func.count(User.id).label('new_users')
+        ).filter(func.date(User.created_at) >= fourteen_days_ago).group_by('day').all()
+        
+        new_users_by_day = {str(day): count for day, count in daily_new_users}
+        
         data = []
+        current_total = base_count
+        
         for i in range(14):
-            day = datetime.utcnow().date() - timedelta(days=13-i)
-            count = User.query.filter(func.date(User.created_at) <= day).count()
-            new_users = User.query.filter(func.date(User.created_at) == day).count()
+            day = fourteen_days_ago + timedelta(days=i)
+            day_str = day.strftime('%Y-%m-%d')
+            new_users = new_users_by_day.get(day_str, 0)
+            current_total += new_users
             
             data.append({
-                "date": day.strftime('%Y-%m-%d'),
-                "users": count,
+                "date": day_str,
+                "users": current_total,
                 "retention": 85, # Default placeholder
                 "newUsers": new_users
             })

@@ -117,3 +117,24 @@ class AuthService:
         count = Session.query.filter_by(user_id=user_id, revoked=False).update({"revoked": True})
         db.session.commit()
         return count
+
+    @staticmethod
+    def verify_user(email: str) -> bool:
+        """Mark a user as verified."""
+        user = User.query.filter_by(email=email).first()
+        if user:
+            user.is_verified = True
+            db.session.commit()
+            return True
+        return False
+
+    @staticmethod
+    def reset_password(email: str, new_password: str) -> bool:
+        """Update password and revoke all existing sessions."""
+        user = User.query.filter_by(email=email).first()
+        if user:
+            user.set_password(new_password)
+            db.session.commit()
+            AuthService.logout_all_sessions(user.id)
+            return True
+        return False

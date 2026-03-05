@@ -9,3 +9,5 @@ from app.models.achievement import Achievement
 from app.models.profile_metric import ProfileMetric
 from app.models.module import Module, ModuleAnalytics
 from app.models.notification import Notification
+from app.models.user_progression import UserProgression
+from app.models.xp_transaction import XPTransaction

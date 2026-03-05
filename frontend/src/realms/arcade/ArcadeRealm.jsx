@@ -56,7 +56,9 @@ const GameCard = ({ name, description, category, difficulty, rating = "4.8", ver
 };
 
 const ArcadeRealm = () => {
-    const { modules, fetchModules, loading } = useModuleStore();
+    const modules = useModuleStore(state => state.modules);
+    const fetchModules = useModuleStore(state => state.fetchModules);
+    const loading = useModuleStore(state => state.loading);
     const games = modules.filter(m => m.type === 'game');
 
     useEffect(() => {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Flame, Target, MessageSquare, History, ShieldAlert } from 'lucide-react';
-import roastApi from '../../api/roastApi';
+import { RoastService } from '../../services/api';
 
 const RoastRealm = () => {
     const [roastType, setRoastType] = useState('normal');
@@ -16,18 +16,18 @@ const RoastRealm = () => {
         try {
             let response;
             switch (roastType) {
-                case 'normal': response = await roastApi.getNormalRoast(); break;
+                case 'normal': response = await RoastService.getNormal(); break;
                 case 'personal':
                     if (!name.trim()) {
                         setError('TARGET IDENTITY REQUIRED');
                         setLoading(false);
                         return;
                     }
-                    response = await roastApi.getPersonalRoast(name);
+                    response = await RoastService.getPersonal(name);
                     break;
-                case 'ultra': response = await roastApi.getUltraRoast(); break;
-                case 'random': response = await roastApi.getRandomRoast(); break;
-                default: response = await roastApi.getNormalRoast();
+                case 'ultra': response = await RoastService.getUltra(); break;
+                case 'random': response = await RoastService.getRandom(); break;
+                default: response = await RoastService.getNormal();
             }
             setRoasts([{ roast: response.data.roast, type: roastType, timestamp: new Date() }, ...roasts.slice(0, 4)]);
         } catch (err) {
@@ -77,8 +77,8 @@ const RoastRealm = () => {
                                     key={t.id}
                                     onClick={() => setRoastType(t.id)}
                                     className={`p-4 rounded-xl border transition-all flex flex-col items-center gap-2 group ${roastType === t.id
-                                            ? `bg-${t.color}/10 border-${t.color}/30 text-${t.color}`
-                                            : 'bg-white/5 border-white/5 text-gray-500 hover:border-white/10'
+                                        ? `bg-${t.color}/10 border-${t.color}/30 text-${t.color}`
+                                        : 'bg-white/5 border-white/5 text-gray-500 hover:border-white/10'
                                         }`}
                                 >
                                     <t.icon size={20} className={roastType === t.id ? 'animate-bounce' : 'group-hover:text-white'} />
@@ -110,8 +110,8 @@ const RoastRealm = () => {
                             onClick={generateRoast}
                             disabled={loading}
                             className={`w-full py-4 rounded-xl font-black uppercase tracking-tighter transition-all shadow-lg ${loading
-                                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                                    : 'bg-neon-green text-black hover:shadow-[0_0_30px_rgba(57,255,20,0.4)] active:scale-95'
+                                ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                                : 'bg-neon-green text-black hover:shadow-[0_0_30px_rgba(57,255,20,0.4)] active:scale-95'
                                 }`}
                         >
                             {loading ? 'CALCULATING BANTER...' : '⚡ EXECUTE ROAST'}

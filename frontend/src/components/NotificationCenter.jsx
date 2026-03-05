@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, CheckCheck, Trash2, Bell, AlertCircle, Trophy, Zap, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import notificationsApi from '../../api/notificationsApi';
+import { NotificationService } from '../services/api';
 
 const NotificationCenter = ({ isOpen, onClose }) => {
   const [notifications, setNotifications] = useState([]);
@@ -57,7 +57,7 @@ const NotificationCenter = ({ isOpen, onClose }) => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await notificationsApi.getNotifications(100, filterType === 'unread');
+      const response = await NotificationService.getAll(100, filterType === 'unread');
       setNotifications(response.data.notifications || []);
       setUnreadCount(response.data.unread_count || 0);
     } catch (error) {
@@ -70,8 +70,8 @@ const NotificationCenter = ({ isOpen, onClose }) => {
   const handleMarkAsRead = async (notifId, e) => {
     e.stopPropagation();
     try {
-      await notificationsApi.markAsRead(notifId);
-      setNotifications(notifications.map(n => 
+      await NotificationService.markAsRead(notifId);
+      setNotifications(notifications.map(n =>
         n.id === notifId ? { ...n, read: true } : n
       ));
       setUnreadCount(Math.max(0, unreadCount - 1));
@@ -82,7 +82,7 @@ const NotificationCenter = ({ isOpen, onClose }) => {
 
   const handleMarkAllAsRead = async () => {
     try {
-      await notificationsApi.markAllAsRead();
+      await NotificationService.markAllAsRead();
       setNotifications(notifications.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (error) {
@@ -93,7 +93,7 @@ const NotificationCenter = ({ isOpen, onClose }) => {
   const handleDelete = async (notifId, e) => {
     e.stopPropagation();
     try {
-      await notificationsApi.deleteNotification(notifId);
+      await NotificationService.delete(notifId);
       setNotifications(notifications.filter(n => n.id !== notifId));
     } catch (error) {
       console.error('Failed to delete notification:', error);
@@ -103,7 +103,7 @@ const NotificationCenter = ({ isOpen, onClose }) => {
   const handleClearAll = async () => {
     if (window.confirm('Clear all notifications?')) {
       try {
-        await notificationsApi.clearAll();
+        await NotificationService.clearAll();
         setNotifications([]);
         setUnreadCount(0);
       } catch (error) {
@@ -112,11 +112,11 @@ const NotificationCenter = ({ isOpen, onClose }) => {
     }
   };
 
-  const filteredNotifications = filterType === 'all' 
-    ? notifications 
+  const filteredNotifications = filterType === 'all'
+    ? notifications
     : filterType === 'unread'
-    ? notifications.filter(n => !n.read)
-    : notifications.filter(n => n.type === filterType);
+      ? notifications.filter(n => !n.read)
+      : notifications.filter(n => n.type === filterType);
 
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
@@ -204,11 +204,10 @@ const NotificationCenter = ({ isOpen, onClose }) => {
                 <button
                   key={type}
                   onClick={() => setFilterType(type)}
-                  className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-semibold transition-all ${
-                    filterType === type
+                  className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-semibold transition-all ${filterType === type
                       ? 'bg-neon-blue text-black'
                       : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                  }`}
+                    }`}
                 >
                   {type.charAt(0).toUpperCase() + type.slice(1)}
                 </button>
@@ -241,9 +240,8 @@ const NotificationCenter = ({ isOpen, onClose }) => {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         transition={{ delay: index * 0.05 }}
-                        className={`p-4 cursor-pointer transition-all hover:bg-slate-700 hover:bg-opacity-50 ${
-                          !notification.read ? 'bg-slate-800 bg-opacity-50 border-l-4 border-neon-blue' : ''
-                        }`}
+                        className={`p-4 cursor-pointer transition-all hover:bg-slate-700 hover:bg-opacity-50 ${!notification.read ? 'bg-slate-800 bg-opacity-50 border-l-4 border-neon-blue' : ''
+                          }`}
                       >
                         <div className="flex gap-3">
                           {/* Icon */}

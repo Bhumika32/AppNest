@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.services.module_service import ModuleService
+from app.services.lifecycle_service import LifecycleService
 from app.core.auth import admin_required
 
 module_bp = Blueprint("modules", __name__, url_prefix="/api/modules")
@@ -50,6 +51,23 @@ def track_end():
         return jsonify(message=message), 200
     return jsonify(error=message), 404
 
+@module_bp.route("/execute/<slug>", methods=["POST"])
+@jwt_required()
+def execute_module(slug):
+    user_id = get_jwt_identity()
+    data = request.get_json() or {}
+    
+    try:
+        entry_id = data.get('entry_id')
+        result = LifecycleService.execute_module(user_id, slug, data, entry_id)
+        return jsonify(result), 200
+    except ValueError as e:
+        return jsonify(error=str(e)), 400
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify(error=str(e)), 500
+
 # Admin Routes
 admin_module_bp = Blueprint("admin_modules", __name__, url_prefix="/api/admin/modules")
 
@@ -78,3 +96,10 @@ def delete_module(id):
     if ModuleService.delete_module(id):
         return jsonify(message="Module purged"), 200
     return jsonify(error="Module not found"), 404
+
+@admin_module_bp.route("/seed", methods=["POST"])
+@jwt_required()
+@admin_required()
+def seed_modules():
+    result = ModuleService.seed_modules()
+    return jsonify(message="Modules seeded successfully", data=result), 200

@@ -112,11 +112,7 @@ class AuthController:
                 return jsonify({"error": message}), 400
 
             # Mark user as verified
-            user = User.query.filter_by(email=email).first()
-            if user:
-                user.is_verified = True
-                from app.core.extensions import db
-                db.session.commit()
+            AuthService.verify_user(email)
 
             return jsonify({"message": "Account verified successfully."}), 200
         except Exception as e:
@@ -222,12 +218,6 @@ class AuthController:
         if not success:
             return jsonify({"error": message}), 400
 
-        user = User.query.filter_by(email=email).first()
-        if user:
-            user.set_password(new_password)
-            # Critical Security Step: Revoke ALL sessions after password change
-            AuthService.logout_all_sessions(user.id)
-            from app.core.extensions import db
-            db.session.commit()
+        AuthService.reset_password(email, new_password)
 
         return jsonify({"message": "Password reset successfully. Please login again."}), 200

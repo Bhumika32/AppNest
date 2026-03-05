@@ -1,9 +1,9 @@
-import apiClient from './apiClient';
+import apiClient from './apiClient'; // Updated imported reference
 
 export const gameService = {
     getGames: () => apiClient.get('/games'),
     getLeaderboard: (gameId) => apiClient.get(`/games/${gameId}/leaderboard`),
-    completeGame: (payload) => apiClient.post('/games/complete', payload),
+    // completeGame is removed. Use moduleExecutionService.execute instead.
 };
 
 export const roastService = {

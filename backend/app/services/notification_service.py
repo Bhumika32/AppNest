@@ -197,12 +197,39 @@ class NotificationService:
 
     @staticmethod
     def broadcast_announcement(announcement: str, exclude_admin: bool = False):
-        """Send system announcement to all users."""
+        """Send system announcement to all users in batches."""
         from app.models.user import User
+        from app.models.role import Role
         
-        users = User.query.all()
+        query = User.query
         if exclude_admin:
-            users = [u for u in users if u.role and u.role.name != 'admin']
+            admin_role = Role.query.filter_by(name='admin').first()
+            if admin_role:
+                query = query.filter(User.role_id != admin_role.id)
         
-        for user in users:
-            NotificationService.notify_system_announcement(user.id, announcement)
+        batch_size = 500
+        offset = 0
+        expires_at = datetime.utcnow() + timedelta(days=30)
+        
+        while True:
+            users_batch = query.offset(offset).limit(batch_size).all()
+            if not users_batch:
+                break
+                
+            notifications_to_add = []
+            for user in users_batch:
+                notification = Notification(
+                    user_id=user.id,
+                    type='system',
+                    title="📢 System Announcement",
+                    message=announcement,
+                    icon='AlertCircle',
+                    color='neon-yellow',
+                    expires_at=expires_at
+                )
+                notifications_to_add.append(notification)
+                
+            db.session.bulk_save_objects(notifications_to_add)
+            db.session.commit()
+            
+            offset += batch_size

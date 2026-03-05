@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { User, Mail, Shield, Award, Activity, Edit3, Key } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
 import { useUserStore } from '../../store/userStore.js';
-import profileApi from '../../api/profileApi';
 import { UserService } from '../../services/api';
 import { useState, useRef } from 'react';
 import { Settings } from 'lucide-react';
@@ -36,8 +35,8 @@ const ProfileRealm = () => {
                             <div className="w-24 h-24 rounded-2xl bg-dark-surface border-2 border-neon-blue p-1 shadow-[0_0_20px_rgba(0,243,255,0.3)]">
                                 <div className="w-full h-full rounded-xl bg-gradient-to-br from-neon-blue/20 to-neon-pink/20 flex items-center justify-center">
                                     <img src={user?.avatar_url || user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username || 'PlayerOne'}`}
-                                         alt="avatar"
-                                         className="w-full h-full object-cover rounded-xl" />
+                                        alt="avatar"
+                                        className="w-full h-full object-cover rounded-xl" />
                                 </div>
                             </div>
                             <div className="absolute -bottom-2 -right-2">

@@ -37,8 +37,8 @@ const ToolAnalytics = () => {
                         <PieChartIcon size={18} className="text-neon-blue" />
                         MODULE LOAD DISTRIBUTION
                     </h3>
-                    <div className="h-[300px] w-full flex items-center justify-center">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-[300px] w-full flex items-center justify-center min-h-[300px]">
+                        <ResponsiveContainer width="100%" height={300}>
                             <PieChart>
                                 <Pie
                                     data={toolUsage}
