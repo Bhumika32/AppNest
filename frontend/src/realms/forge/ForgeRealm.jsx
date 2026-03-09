@@ -51,9 +51,7 @@ const ForgeRealm = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const tools = modules.filter(m => m.type === 'tool');
 
-    useEffect(() => {
-        if (modules.length === 0) fetchModules();
-    }, [modules.length, fetchModules]);
+
 
     const filteredTools = tools.filter(t =>
         t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

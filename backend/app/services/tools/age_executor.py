@@ -335,22 +335,29 @@ class AgeExecutor(ModuleExecutor):
     module_key = "age-calculator"
 
     def execute(self, payload: dict, user):
-        dob_str = payload.get("dob")
-        name = payload.get("name") or user.username
+        metadata = payload.get("metadata", {})
+        dob_str = payload.get("dob") or metadata.get("dob")
+        name = payload.get("name") or metadata.get("name") or user.username
         
         if not dob_str:
-            raise ValueError("Date of birth (dob) is required in format YYYY-MM-DD")
+            return {"error": "INVALID_INPUT", "message": "Date of birth (dob) is required in format YYYY-MM-DD"}
             
-        dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
+        try:
+            dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
+        except ValueError:
+            return {"error": "INVALID_INPUT", "message": "Invalid date format. Use YYYY-MM-DD"}
         fun_mode = payload.get("fun_mode", True)
         roast_mode = payload.get("roast_mode", False)
 
-        result = AgeService.calculate(
-            name=name, 
-            dob=dob, 
-            fun_mode=fun_mode, 
-            roast_mode=roast_mode
-        )
+        try:
+            result = AgeService.calculate(
+                name=name, 
+                dob=dob, 
+                fun_mode=fun_mode, 
+                roast_mode=roast_mode
+            )
+        except ValueError as e:
+            return {"error": "INVALID_INPUT", "message": str(e)}
         
         return {
             "name": result.name,

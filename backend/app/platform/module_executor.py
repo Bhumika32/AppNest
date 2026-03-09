@@ -22,7 +22,6 @@ class ModuleExecutor:
             import traceback
             traceback.print_exc()
             return {
-                "status": "error",
-                "error": str(e),
-                "is_complete": True
+                "error": "MODULE_EXECUTION_FAILED",
+                "message": "Tool execution failed"
             }

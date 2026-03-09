@@ -18,11 +18,7 @@ const ModuleLoader = () => {
     const moduleRef = React.useRef(null);
     const currentSlugRef = React.useRef(null);
 
-    React.useEffect(() => {
-        if (modules.length === 0) {
-            fetchModules();
-        }
-    }, [modules.length, fetchModules]);
+
 
     const moduleData = getModuleBySlug(slug);
     const Component = moduleData ? moduleRegistry[moduleData.component_key] : null;

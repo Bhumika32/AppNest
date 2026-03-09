@@ -80,31 +80,45 @@ class AuthService:
         return True, "Login successful.", user, session, refresh_token
 
     @staticmethod
-    def refresh_session(old_refresh_token: str) -> Tuple[bool, str, Optional[User], Optional[Session], Optional[str]]:
+    def refresh_session(session_id: str, provided_token: str) -> Tuple[bool, str, Optional[User], Optional[Session], Optional[str]]:
         """
-        Validate old refresh token and rotate it.
+        Validate provided refresh token against session hash and rotate it.
+        Implements Token Reuse Detection.
         """
-        hashed_old = hash_data(old_refresh_token)
-        session = Session.query.filter_by(refresh_token_hash=hashed_old, revoked=False).first()
+        session = Session.query.filter_by(id=session_id).first()
 
-        if not session or session.is_expired():
-            return False, "Invalid or expired session. Please login again.", None, None, None
+        if not session:
+            return False, "Session not found.", None, None, None
 
-        # Refresh rotation: generate new token, update session
+        if session.revoked or session.is_expired():
+            return False, "Session revoked or expired.", None, None, None
+
+        hashed_provided = hash_data(provided_token)
+
+        # ── Token Reuse Detection ─────────────────────────────────────────────
+        # If the provided token hash doesn't match the current one, it means
+        # this token was likely stolen and already rotated, or is invalid.
+        if session.refresh_token_hash != hashed_provided:
+            # TREATED AS TOKEN THEFT: Revoke all sessions for this user
+            db.session.query(Session).filter_by(user_id=session.user_id).update({"revoked": True})
+            db.session.commit()
+            return False, "Security Alert: Token reuse detected. All sessions revoked.", None, None, None
+
+        # ── Token Rotation ──────────────────────────────────────────────────
         new_refresh_token = generate_secure_token()
         session.refresh_token_hash = hash_data(new_refresh_token)
-        session.expires_at = datetime.utcnow() + timedelta(days=30) # Slide expiry
         session.last_used_at = datetime.utcnow()
+        # Optional: Slide expiry (keeps user logged in if they use the app)
+        session.expires_at = datetime.utcnow() + timedelta(days=30)
 
         db.session.commit()
 
-        return True, "Token refreshed.", session.user, session, new_refresh_token
+        return True, "Token rotated.", session.user, session, new_refresh_token
 
     @staticmethod
-    def logout_session(refresh_token: str) -> bool:
-        """Revoke a specific session."""
-        hashed_token = hash_data(refresh_token)
-        session = Session.query.filter_by(refresh_token_hash=hashed_token).first()
+    def logout_session(session_id: str) -> bool:
+        """Revoke a specific session by ID."""
+        session = Session.query.filter_by(id=session_id).first()
         if session:
             session.revoked = True
             db.session.commit()

@@ -8,6 +8,7 @@ Initializes Flask app, extensions, and registers routes.
 from flask import Flask
 from app.core.config import Config
 from app.core.extensions import db, migrate, mail
+from app.events.notification_handlers import register_notification_handlers
 
 # Blueprints
 from app.api.auth_routes import auth_bp
@@ -36,7 +37,8 @@ def create_app():
     app.config["JWT_HEADER_NAME"] = "Authorization"
     app.config["JWT_HEADER_TYPE"] = "Bearer"
     app.config["JWT_ERROR_MESSAGE_KEY"] = "error"
-
+    # Register event handlers for notifications
+    register_notification_handlers()
     # -------------------------
     # Initialize extensions
     # -------------------------
@@ -63,36 +65,9 @@ def create_app():
         db.create_all()
         # Modules are seed-based or dynamic, no need for manifest scanning now
         
-        # Auto-register module executors
-        from app.platform.module_registry import register_executor
-        from app.services.tools.bmi_executor import BMIExecutor
-        from app.services.tools.currency_executor import CurrencyExecutor
-        from app.services.tools.age_executor import AgeExecutor
-        from app.services.tools.rashi_executor import RashiExecutor
-        from app.services.tools.weather_executor import WeatherExecutor
-        from app.services.tools.unit_converter_executor import UnitConverterExecutor
-        
-        from app.services.games.tictactoe_executor import TicTacToeExecutor
-        from app.services.games.snake_executor import SnakeExecutor
-        from app.services.games.flappy_bird_executor import FlappyBirdExecutor
-        from app.services.games.brick_breaker_executor import BrickBreakerExecutor
-        
-        from app.services.tools.extra_executors import CGPAExecutor, JokeExecutor, TranslatorExecutor
-        
-        register_executor(BMIExecutor.module_key, BMIExecutor)
-        register_executor(CurrencyExecutor.module_key, CurrencyExecutor)
-        register_executor(AgeExecutor.module_key, AgeExecutor)
-        register_executor(RashiExecutor.module_key, RashiExecutor)
-        register_executor(WeatherExecutor.module_key, WeatherExecutor)
-        register_executor(UnitConverterExecutor.module_key, UnitConverterExecutor)
-        register_executor(CGPAExecutor.module_key, CGPAExecutor)
-        register_executor(JokeExecutor.module_key, JokeExecutor)
-        register_executor(TranslatorExecutor.module_key, TranslatorExecutor)
-        
-        register_executor(TicTacToeExecutor.module_key, TicTacToeExecutor)
-        register_executor(SnakeExecutor.module_key, SnakeExecutor)
-        register_executor(FlappyBirdExecutor.module_key, FlappyBirdExecutor)
-        register_executor(BrickBreakerExecutor.module_key, BrickBreakerExecutor)
+        # Initialize module discovery
+        from app.platform.module_registry import ModuleRegistry
+        ModuleRegistry._discover_modules()
 
 
     # -------------------------

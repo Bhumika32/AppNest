@@ -118,15 +118,13 @@ const BrickBreakerGame = ({ engine }) => {
             let activeBricks = 0;
             state.current.bricks.forEach(b => {
                 if (b.status === 1) {
-                    // Quick check bounds
                     if (state.current.ball.x > b.x && state.current.ball.x < b.x + b.w && state.current.ball.y > b.y && state.current.ball.y < b.y + b.h) {
                         state.current.ball.dy = -state.current.ball.dy;
                         b.status = 0;
-                        setScore(s => {
-                            const ns = s + 10;
-                            if (ns > 0 && ns % 100 === 0 && showRoast) showRoast('STREAK_ACTIVE');
-                            return ns;
-                        });
+                        setScore(s => s + 10);
+                        if (!state.current.pendingRoast && showRoast) {
+                            state.current.pendingRoast = true;
+                        }
                     } else {
                         activeBricks++;
                     }
@@ -204,6 +202,13 @@ const BrickBreakerGame = ({ engine }) => {
 
         return () => cancelAnimationFrame(animationFrameId);
     }, [isPlaying, isGameOver, score, endGame, showRoast, initBricks]);
+
+    useEffect(() => {
+        if (state.current.pendingRoast && score > 0 && score % 100 === 0 && showRoast) {
+            showRoast('STREAK_ACTIVE');
+            state.current.pendingRoast = false;
+        }
+    }, [score, showRoast]);
 
     const startGame = () => {
         setIsPlaying(true);

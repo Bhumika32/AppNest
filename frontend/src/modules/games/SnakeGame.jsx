@@ -39,6 +39,7 @@ const SnakeGame = ({ engine }) => {
     const [food, setFood] = useState(() => generateFood([{ x: 10, y: 10 }]));
 
     const isPlayingRef = React.useRef(false);
+    const stateRef = React.useRef({ didCrash: false, pendingRoast: false });
 
     useEffect(() => {
         const handleKeyPress = (e) => {
@@ -87,13 +88,13 @@ const SnakeGame = ({ engine }) => {
 
                 // Collision with walls
                 if (newHead.x < 0 || newHead.x >= GRID_SIZE || newHead.y < 0 || newHead.y >= GRID_SIZE) {
-                    handleGameOver();
+                    stateRef.current.didCrash = true;
                     return prevSnake;
                 }
 
                 // Collision with self
                 if (prevSnake.some(segment => segment.x === newHead.x && segment.y === newHead.y)) {
-                    handleGameOver();
+                    stateRef.current.didCrash = true;
                     return prevSnake;
                 }
 
@@ -103,9 +104,7 @@ const SnakeGame = ({ engine }) => {
                 if (newHead.x === food.x && newHead.y === food.y) {
                     setScore(s => s + 10);
                     setFood(generateFood(newSnake));
-                    if (score > 0 && score % 50 === 0 && showRoast) {
-                        showRoast('STREAK_ACTIVE');
-                    }
+                    stateRef.current.pendingRoast = true;
                 } else {
                     newSnake.pop(); // Remove tail if no food eaten
                 }
@@ -118,7 +117,7 @@ const SnakeGame = ({ engine }) => {
         return () => clearInterval(interval);
     }, [isPlaying, isGameOver, direction, food, score, showRoast, generateFood]);
 
-    const handleGameOver = () => {
+    const handleGameOver = useCallback(() => {
         setIsGameOver(true);
         if (showRoast) showRoast('GAME_LOSS');
         setTimeout(() => {
@@ -129,7 +128,22 @@ const SnakeGame = ({ engine }) => {
                 metadata: { snakeLength: snake.length }
             });
         }, 2000);
-    };
+    }, [endGame, score, showRoast, snake.length]);
+
+    useEffect(() => {
+        if (!isGameOver && stateRef.current.didCrash) {
+            handleGameOver();
+        }
+    }, [isGameOver, handleGameOver, snake]); // trigger when snake changes if crashed
+
+    useEffect(() => {
+        if (stateRef.current.pendingRoast && score > 0 && score % 50 === 0 && showRoast) {
+            showRoast('STREAK_ACTIVE');
+            stateRef.current.pendingRoast = false;
+        } else if (score % 50 !== 0) {
+            stateRef.current.pendingRoast = false; // Reset for next threshold
+        }
+    }, [score, showRoast]);
 
     return (
         <div className="flex flex-col items-center gap-6">

@@ -7,11 +7,11 @@ const useAuthStore = create(
   persist(
     (set, get) => ({
       user: null,
-      token: null, // Access token in memory
+      token: null, // Access token strictly in memory
       isAuthenticated: false,
       role: 'user',
       isLoading: false,
-      isInitializing: true,
+      isInitializing: true, // App starts in initializing state
       error: null,
 
       setToken: (token) => set({ token, isAuthenticated: !!token }),
@@ -27,7 +27,7 @@ const useAuthStore = create(
             user,
             token: access_token,
             isAuthenticated: true,
-            role: (user.role || 'user').toLowerCase(),  // ✅ Normalize to lowercase
+            role: (user.role || 'user').toLowerCase(),
             isLoading: false
           });
           return true;
@@ -40,28 +40,77 @@ const useAuthStore = create(
         }
       },
 
+      /**
+       * ── Application Boot Flow ───────────────────────────────────────────
+       * 1. POST /auth/refresh (silent refresh via HttpOnly cookie)
+       * 2. If success -> store access token -> GET /auth/me
+       * 3. Update state
+       * 4. Set isInitializing = false
+       */
       checkAuth: async () => {
         set({ isInitializing: true });
+
         try {
-          const response = await AuthService.getMe();
-          const { user } = response.data;
+          // Step 1: silent refresh
+          const refreshResponse = await AuthService.refresh();
+          const { access_token } = refreshResponse.data;
+
+          set({
+            token: access_token,
+            isAuthenticated: true
+          });
+
+          // Step 2: fetch profile
+          const userResponse = await AuthService.getMe();
+          const user = userResponse.data;
+
           set({
             user,
-            isAuthenticated: true,
-            role: (user.role || 'user').toLowerCase(),  // ✅ Normalize to lowercase
+            role: (user.role || 'user').toLowerCase(),
             isInitializing: false
           });
+
         } catch (error) {
-          // If 401, axios interceptor will try refresh. 
-          // If that fails too, we land here.
+
           set({
             user: null,
             token: null,
             isAuthenticated: false,
             isInitializing: false
           });
+
         }
       },
+      // checkAuth: async () => {
+      //   set({ isInitializing: true });
+      //   try {
+      //     // Step 1: Attempt silent refresh
+      //     const refreshResponse = await AuthService.refresh();
+      //     const { access_token } = refreshResponse.data;
+
+      //     set({ token: access_token });
+
+      //     // Step 2: Fetch user profile with new access token
+      //     const userResponse = await AuthService.getMe();
+      //     // const { user } = userResponse.data;
+      //     const user = userResponse.data; // Assuming /auth/me returns user directly
+
+      //     set({
+      //       user,
+      //       isAuthenticated: true,
+      //       role: (user.role || 'user').toLowerCase(),
+      //       isInitializing: false
+      //     });
+      //   } catch (error) {
+      //     // If refresh fails or me fails -> user is logged out
+      //     set({
+      //       user: null,
+      //       token: null,
+      //       isAuthenticated: false,
+      //       isInitializing: false
+      //     });
+      //   }
+      // },
 
       logout: async () => {
         try {
@@ -78,6 +127,7 @@ const useAuthStore = create(
           });
         }
       },
+      // ... rest of the methods remain similar
 
       register: async (username, email, password) => {
         set({ isLoading: true, error: null });
@@ -154,19 +204,15 @@ const useAuthStore = create(
     {
       name: 'appnest-auth-storage',
       partialize: (state) => ({
+        // We only persist non-sensitive user data if needed for UI shell
+        // Tokens and isAuthenticated MUST NOT be persisted
         user: state.user,
-        token: state.token,
-        isAuthenticated: state.isAuthenticated,
         role: state.role
       }),
       onRehydrateStorage: () => (state) => {
-        // This runs after Zustand has hydrated data from localStorage
-        if (state && state.token) {
-          console.log('[AuthStore] Hydrated from localStorage. Verifying backend...');
-          setTimeout(() => state.checkAuth(), 0);
-        } else if (state) {
-          console.log('[AuthStore] No token found in localStorage.');
-          state.isInitializing = false;
+        // After hydration, trigger the boot flow (refresh -> me)
+        if (state) {
+          state.checkAuth();
         }
       }
     }

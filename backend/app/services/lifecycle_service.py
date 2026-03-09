@@ -27,24 +27,33 @@ class LifecycleService:
         try:
             executor = get_executor(module_slug)
             result = getattr(executor, 'safe_execute', executor.execute)(payload, user)
-        except Exception as e:
+        except Exception:
             import traceback
             traceback.print_exc()
             result = {
-                "status": "error",
-                "error": str(e),
-                "is_complete": True
+                "error": "MODULE_EXECUTION_FAILED",
+                "message": "Tool execution failed"
             }
         
         # 3. Process lifecycle completion
         # Determine if execution constitutes completion
         # Tools always complete. Games complete if they flag it.
         is_complete = True
-        if module.type == 'game':
-             is_complete = result.get('is_complete', False) or \
-                          result.get('win', False) or \
-                          result.get('is_over', False)
-        
+        if module.type == "game":
+
+            if not isinstance(result, dict):
+                is_complete = False
+
+            else:
+                status = result.get("status")
+
+                is_complete = (
+                    result.get("is_complete", False)
+                    or result.get("win", False)
+                    or result.get("is_over", False)
+                    or status in ["player_win", "ai_win", "draw", "completed"]
+                )
+                
         lifecycle_res = None
         if is_complete:
             completion_payload = {

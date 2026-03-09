@@ -123,9 +123,12 @@ class BMIExecutor(ModuleExecutor):
         weight = payload.get("weight_kg") or payload.get("weight") or meta.get("weight_kg") or meta.get("weight")
 
         if not height or not weight:
-            raise ValueError("Height and weight are required")
+            return {"error": "INVALID_INPUT", "message": "Height and weight are required"}
 
-        result = BMIService.calculate_bmi(float(weight), float(height))
+        try:
+            result = BMIService.calculate_bmi(float(weight), float(height))
+        except ValueError as e:
+            return {"error": "INVALID_INPUT", "message": str(e)}
         
         return {
             "bmi": result.bmi,

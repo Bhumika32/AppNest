@@ -3,7 +3,7 @@
  * 
  * Industry-level notification bell dropdown panel.
  * Shows XP, streak, level-up, achievements and general app notifications.
- * Closes on outside click. Marks items as read when panel opens.
+ * Closes on outside click. Marks items as read when panel opens
  */
 import React, { useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +12,7 @@ import {
     CheckCheck, Trash2, X
 } from 'lucide-react';
 import { useNotificationStore } from '../store/notificationStore.js';
+import { createPortal } from "react-dom";
 
 // ── Type config ────────────────────────────────────────────────
 const TYPE_META = {
@@ -95,6 +96,7 @@ const NotifRow = ({ notif, onRead }) => {
 // ── Main Panel ─────────────────────────────────────────────────
 const NotificationPanel = () => {
     const [open, setOpen] = React.useState(false);
+    const [rect, setRect] = React.useState(null);
     const panelRef = useRef(null);
     const btnRef = useRef(null);
 
@@ -119,10 +121,14 @@ const NotificationPanel = () => {
     const handleOpen = useCallback(async () => {
         const willOpen = !open;
         setOpen(willOpen);
-        if (willOpen) {
+
+        if (willOpen && btnRef.current) {
+
+            const r = btnRef.current.getBoundingClientRect(); // NEW
+            setRect(r);                                       // NEW
+
             await fetchNotifications(100, false);
-            // Mark as read (persist) but keep items in history
-            await markAllAsRead();
+            // await markAllAsRead();
         }
     }, [open, fetchNotifications, markAllAsRead]);
 
@@ -153,17 +159,20 @@ const NotificationPanel = () => {
             </button>
 
             {/* Dropdown Panel */}
-            <AnimatePresence>
-                {open && (
-                    <motion.div
-                        ref={panelRef}
-                        initial={{ opacity: 0, y: -8, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                        className="absolute right-0 mt-3 w-96 max-h-[70vh] flex flex-col rounded-2xl bg-dark-surface/95 backdrop-blur-xl border border-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.6)] z-[300] overflow-hidden"
-                        style={{ top: '100%' }}
-                    >
+        {createPortal(
+  <AnimatePresence>
+    {open && (
+      <motion.div
+        ref={panelRef}
+        initial={{ opacity: 0, y: -8, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -8, scale: 0.97 }}
+        className="fixed w-96 max-h-[70vh] flex flex-col rounded-2xl bg-dark-surface/95 backdrop-blur-xl border border-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.6)] z-[9999] overflow-hidden"
+        style={{
+            top: rect ? rect.bottom + 8 : 80,
+            left: rect ? rect.right - 384 : window.innerWidth - 420
+            }}
+      >
                         {/* Header */}
                         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
                             <div className="flex items-center gap-2">
@@ -239,10 +248,12 @@ const NotificationPanel = () => {
                             </div>
                         )}
                     </motion.div>
-                )}
-            </AnimatePresence>
+    )}
+  </AnimatePresence>,
+  document.body
+)}
         </div>
     );
-};
+}
 
 export default NotificationPanel;

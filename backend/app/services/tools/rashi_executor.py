@@ -312,29 +312,32 @@ class RashiExecutor(ModuleExecutor):
 
         # If frontend already calculated a sign, we can return that or re-calculate
         # For now, we follow the backend logic to ensure consistency
-        result = RashiService.calculate(
-            name=name,
-            birth_place=birth_place,
-            birth_time=birth_time,
-            birth_date=birth_date,
-            birth_lat=birth_lat,
-            birth_lon=birth_lon
-        )
-        
-        return {
-            "rashi": result.rashi,
-            "icon": result.icon,
-            "short_place": result.short_place,
-            "birth_time": result.birth_time,
-            "birth_date": result.birth_date,
-            "headline": result.headline,
-            "real_fact": result.real_fact,
-            "roast": result.roast,
-            "strengths": result.strengths,
-            "weakness": result.weakness,
-            "love_style": result.love_style,
-            "career_vibe": result.career_vibe,
-            "lucky_color": result.lucky_color,
-            "lucky_number": result.lucky_number,
-            "vibe_meter": result.vibe_meter
-        }
+        try:
+            result = RashiService.calculate(
+                name=name,
+                birth_place=birth_place,
+                birth_time=birth_time,
+                birth_date=birth_date,
+                birth_lat=birth_lat,
+                birth_lon=birth_lon
+            )
+            
+            return {
+                "rashi": result.rashi,
+                "icon": result.icon,
+                "short_place": result.short_place,
+                "birth_time": result.birth_time,
+                "birth_date": result.birth_date,
+                "headline": result.headline,
+                "real_fact": result.real_fact,
+                "roast": result.roast,
+                "strengths": result.strengths,
+                "weakness": result.weakness,
+                "love_style": result.love_style,
+                "career_vibe": result.career_vibe,
+                "lucky_color": result.lucky_color,
+                "lucky_number": result.lucky_number,
+                "vibe_meter": result.vibe_meter
+            }
+        except Exception as e:
+            return {"error": "INVALID_INPUT", "message": str(e)}

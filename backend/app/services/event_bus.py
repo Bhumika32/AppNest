@@ -40,3 +40,4 @@ class Events:
     XP_GRANTED = "XP_GRANTED"
     LEVEL_UP = "LEVEL_UP"
     ACHIEVEMENT_UNLOCKED = "ACHIEVEMENT_UNLOCKED"
+    STREAK_UPDATED = "streak_updated"

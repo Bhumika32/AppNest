@@ -8,7 +8,7 @@ const OBSTACLE_GAP = 150;
 
 const FlappyBirdGame = ({ engine }) => {
     const { config, endGame, showRoast } = engine;
-    
+
     const [birdY, setBirdY] = useState(200);
     const [velocity, setVelocity] = useState(0);
     const [obstacles, setObstacles] = useState([]);
@@ -57,8 +57,7 @@ const FlappyBirdGame = ({ engine }) => {
             setBirdY(prev => {
                 const newY = prev + velocity;
                 if (newY >= 400 || newY <= 0) {
-                    handleGameOver();
-                    return prev; // stop falling instantly exactly
+                    return newY >= 400 ? 400 : 0; // stop falling instantly exactly
                 }
                 return newY;
             });
@@ -81,28 +80,24 @@ const FlappyBirdGame = ({ engine }) => {
                 // scoring check
                 newObstacles = newObstacles.map(obs => {
                     if (!obs.passed && obs.x < 50) { // bird X is fixed at 50
-                        setScore(s => {
-                            const newScore = s + 10;
-                            if (newScore > 0 && newScore % 50 === 0 && showRoast) showRoast('STREAK_ACTIVE');
-                            return newScore;
-                        });
+                        setScore(s => s + 10);
                         return { ...obs, passed: true };
                     }
                     return obs;
                 });
-                
+
                 // collision detection (Bird X: [50, 80], Y: [birdY, birdY+30])
                 const birdLeft = 50;
                 const birdRight = 80;
-                
+
                 for (let obs of newObstacles) {
                     const obsLeft = obs.x;
                     const obsRight = obs.x + OBSTACLE_WIDTH;
-                    
+
                     if (birdRight > obsLeft && birdLeft < obsRight) {
                         // In X collision zone
                         if (birdY < obs.topHeight || birdY + 30 > obs.topHeight + OBSTACLE_GAP) {
-                            handleGameOver();
+                            state.current.didCrash = true;
                         }
                     }
                 }
@@ -117,7 +112,7 @@ const FlappyBirdGame = ({ engine }) => {
         return () => cancelAnimationFrame(animationFrameId);
     }, [isPlaying, isGameOver, velocity, birdY, generateObstacle, showRoast]);
 
-    const handleGameOver = () => {
+    const handleGameOver = useCallback(() => {
         setIsGameOver(true);
         if (showRoast) showRoast('GAME_LOSS');
         setTimeout(() => {
@@ -125,23 +120,46 @@ const FlappyBirdGame = ({ engine }) => {
                 score: score,
                 win: score > 30, // arbitrary win condition
                 result: 'completed',
-                metadata: { obstaclesPassed: score/10 }
+                metadata: { obstaclesPassed: score / 10 }
             });
         }, 2000);
-    };
+    }, [endGame, score, showRoast]);
+
+    const state = useRef({ didCrash: false, pendingRoast: false });
+
+    useEffect(() => {
+        if (!isGameOver && (birdY >= 400 || birdY <= 0 || state.current.didCrash)) {
+            handleGameOver();
+        }
+    }, [birdY, isGameOver, handleGameOver]);
+
+    useEffect(() => {
+        if (score > 0 && score % 50 === 0 && !state.current.pendingRoast) {
+            state.current.pendingRoast = true;
+        } else if (score % 50 !== 0) {
+            state.current.pendingRoast = false; // Reset when score moves past multiple
+        }
+    }, [score]);
+
+    useEffect(() => {
+        if (state.current.pendingRoast && showRoast) {
+            showRoast('STREAK_ACTIVE');
+            state.current.pendingRoast = false; // Prevent multiple fires
+        }
+    }, [score, showRoast]);
 
     return (
         <div className="flex flex-col items-center gap-4">
             <h2 className="text-3xl font-black text-white uppercase tracking-widest drop-shadow-lg">
                 Score: <span className="text-neon-pink">{score}</span>
             </h2>
-            
-            <div 
+
+            <div
                 className="relative w-[400px] h-[400px] bg-black/60 border-2 border-white/20 rounded-xl overflow-hidden cursor-pointer active:cursor-grabbing backdrop-blur-md"
                 onClick={jump}
             >
                 {/* Bird */}
-                <motion.div 
+                <motion.div
                     className="absolute w-8 h-8 bg-neon-blue rounded-full shadow-[0_0_15px_rgba(0,255,255,0.8)]"
                     style={{ left: 50, top: birdY }}
                 />
@@ -150,12 +168,12 @@ const FlappyBirdGame = ({ engine }) => {
                 {obstacles.map((obs, i) => (
                     <React.Fragment key={i}>
                         {/* Top */}
-                        <div 
+                        <div
                             className="absolute bg-gradient-to-b from-white/10 to-neon-pink/80 border-b-2 border-neon-pink"
                             style={{ left: obs.x, top: 0, width: OBSTACLE_WIDTH, height: obs.topHeight }}
                         />
                         {/* Bottom */}
-                        <div 
+                        <div
                             className="absolute bg-gradient-to-t from-white/10 to-neon-pink/80 border-t-2 border-neon-pink"
                             style={{ left: obs.x, top: obs.topHeight + OBSTACLE_GAP, width: OBSTACLE_WIDTH, height: 400 - (obs.topHeight + OBSTACLE_GAP) }}
                         />
@@ -167,7 +185,7 @@ const FlappyBirdGame = ({ engine }) => {
                         <span className="text-white font-black uppercase tracking-widest animate-pulse">Click or Space to Start</span>
                     </div>
                 )}
-                
+
                 {isGameOver && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md">
                         <span className="text-4xl font-black text-red-500 uppercase tracking-widest mb-2 shadow-red-500 drop-shadow-lg">Crashed</span>

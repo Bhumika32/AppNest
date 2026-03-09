@@ -186,9 +186,25 @@ class UnitConverterExecutor(ModuleExecutor):
         category = payload.get("category") or metadata.get("category")
 
         if value is None or not from_unit or not to_unit or not category:
-            raise ValueError("value, from_unit, to_unit, and category are required")
+            return {"error": "INVALID_INPUT", "message": "value, from_unit, to_unit, and category are required"}
 
-        result = UnitConverterService.convert(float(value), from_unit, to_unit, category)
+        UNIT_ALIASES = {
+            "m": "meter", "km": "kilometer", "cm": "centimeter", "mm": "millimeter",
+            "mi": "mile", "yd": "yard", "ft": "foot", "in": "inch",
+            "kg": "kilogram", "g": "gram", "mg": "milligram", "lb": "pound", "oz": "ounce",
+            "l": "liter", "ml": "milliliter", "gal": "gallon",
+            "cup": "cup", "tbsp": "tablespoon", "tsp": "teaspoon",
+            "c": "celsius", "f": "fahrenheit", "k": "kelvin"
+        }
+
+        from_unit = UNIT_ALIASES.get(from_unit.lower(), from_unit.lower())
+        to_unit = UNIT_ALIASES.get(to_unit.lower(), to_unit.lower())
+
+        try:
+            result = UnitConverterService.convert(float(value), from_unit, to_unit, category)
+        except ValueError as e:
+            return {"error": "INVALID_INPUT", "message": str(e)}
+            
         return {
             "value": result.value,
             "from_unit": result.from_unit,

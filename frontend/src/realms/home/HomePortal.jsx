@@ -39,9 +39,7 @@ const HomePortal = () => {
     const error = useUserStore(state => state.error);
     const fetchDashboard = useUserStore(state => state.fetchDashboard);
 
-    React.useEffect(() => {
-        fetchDashboard();
-    }, [fetchDashboard]);
+
 
     if (error) {
         return (

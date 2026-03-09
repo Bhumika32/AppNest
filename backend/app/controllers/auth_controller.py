@@ -13,16 +13,21 @@ class AuthController:
     """
 
     @staticmethod
-    def _set_auth_cookie(response, refresh_token):
-        """Helper to set secure HttpOnly refresh cookie."""
-        # Note: secure=False and samesite='Lax' for local development compatibility
+    def _set_auth_cookie(response, session_id, refresh_token):
+        """
+        Helper to set secure HttpOnly refresh cookie.
+        Format: session_id.refresh_token
+        """
+        cookie_value = f"{session_id}.{refresh_token}"
+        # Note: In production, Secure should be True and SameSite 'Strict' or 'Lax'
         response.set_cookie(
             'refresh_token',
-            refresh_token,
+            cookie_value,
             httponly=True,
-            secure=False,  
+            secure=False,  # Set to True in production
             samesite='Lax',
-            max_age=30 * 24 * 60 * 60  # 30 days
+            max_age=30 * 24 * 60 * 60,  # 30 days
+            path='/api/auth' # Scope to auth endpoints only
         )
         return response
 
@@ -67,7 +72,7 @@ class AuthController:
                 }
             }))
             
-            return AuthController._set_auth_cookie(resp, refresh_token), 200
+            return AuthController._set_auth_cookie(resp, session.id, refresh_token), 200
 
         except Exception as e:
             traceback.print_exc()
@@ -136,31 +141,37 @@ class AuthController:
     @staticmethod
     def refresh():
         """Refresh rotation: uses HttpOnly cookie to issue new access + refresh tokens."""
-        refresh_token = request.cookies.get('refresh_token')
-        if not refresh_token:
-            return jsonify({"error": "No refresh token provided"}), 401
+        refresh_cookie = request.cookies.get('refresh_token')
+        if not refresh_cookie or "." not in refresh_cookie:
+            return jsonify({"error": "No valid refresh token provided"}), 401
 
-        success, message, user, session, new_refresh = AuthService.refresh_session(refresh_token)
+        session_id, refresh_token = refresh_cookie.split(".", 1)
+        
+        success, message, user, session, new_refresh = AuthService.refresh_session(session_id, refresh_token)
         if not success:
+            # If "reuse detected" or "revoked", clear cookie
             resp = make_response(jsonify({"error": message}), 401)
-            resp.set_cookie('refresh_token', '', expires=0) # Clear invalid cookie
+            resp.set_cookie('refresh_token', '', expires=0, path='/api/auth')
             return resp
 
         # Issue new access token
         new_access = JWTManager.issue_access_token(user.id, user.role.name, session.id)
 
         resp = make_response(jsonify({"access_token": new_access}))
-        return AuthController._set_auth_cookie(resp, new_refresh), 200
+        return AuthController._set_auth_cookie(resp, session.id, new_refresh), 200
 
     @staticmethod
     @jwt_required()
     def logout():
-        refresh_token = request.cookies.get('refresh_token')
-        if refresh_token:
-            AuthService.logout_session(refresh_token)
+        # Get session_id from JWT claims
+        claims = get_jwt()
+        session_id = claims.get("session_id")
+        
+        if session_id:
+            AuthService.logout_session(session_id)
         
         resp = make_response(jsonify({"message": "Logged out"}))
-        resp.set_cookie('refresh_token', '', expires=0)
+        resp.set_cookie('refresh_token', '', expires=0, path='/api/auth')
         return resp, 200
 
     @staticmethod
@@ -170,7 +181,7 @@ class AuthController:
         AuthService.logout_all_sessions(user_id)
         
         resp = make_response(jsonify({"message": "Logged out from all devices"}))
-        resp.set_cookie('refresh_token', '', expires=0)
+        resp.set_cookie('refresh_token', '', expires=0, path='/api/auth')
         return resp, 200
 
     @staticmethod

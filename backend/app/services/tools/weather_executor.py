@@ -14,7 +14,12 @@ Features:
 
 import requests
 import os
+import time
 from dataclasses import dataclass
+
+weather_cache = {}
+CACHE_TTL = 600  # 10 minutes cache
+
 from typing import Optional
 
 
@@ -60,6 +65,15 @@ class WeatherService:
         if not city or not city.strip():
             raise ValueError("City name is required")
 
+        city_key = city.strip().lower()
+        now = time.time()
+        
+        # Check cache
+        if city_key in weather_cache:
+            cache_entry = weather_cache[city_key]
+            if now - cache_entry['timestamp'] < CACHE_TTL:
+                return cache_entry['data']
+
         params = {
             "q": city.strip(),
             "appid": api_key,
@@ -81,7 +95,7 @@ class WeatherService:
                 error_msg = data.get("message", "City not found")
                 raise ValueError(error_msg)
 
-            return WeatherData(
+            result = WeatherData(
                 city=data["name"],
                 country=data["sys"]["country"],
                 temperature=data["main"]["temp"],
@@ -93,6 +107,13 @@ class WeatherService:
                 pressure=data["main"]["pressure"],
                 visibility=data.get("visibility", 0)
             )
+            
+            # Store in cache
+            weather_cache[city_key] = {
+                'timestamp': now,
+                'data': result
+            }
+            return result
         except requests.exceptions.RequestException as e:
             raise ValueError(f"Weather API error: {str(e)}")
         except KeyError as e:
@@ -106,9 +127,15 @@ class WeatherExecutor(ModuleExecutor):
     def execute(self, payload: dict, user):
         metadata = payload.get("metadata", {})
         city = payload.get("city") or metadata.get("city")
-        
+
         if not city:
-            raise ValueError("city is required")
+            return {"error": "INVALID_INPUT", "message": "city is required"}
+
+        try:
+            result = WeatherService.get_weather(city)
+        except ValueError as e:
+            return {"error": "INVALID_INPUT", "message": str(e)}
+
         return {
             "city": result.city,
             "country": result.country,

@@ -32,6 +32,9 @@ apiClient.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+// ── Single-Flight Refresh Queue ───────────────────────────────────────────────
+let refreshPromise = null;
+
 // ── Response Interceptor: Auto-Refresh on 401 ─────────────────────────────────
 apiClient.interceptors.response.use(
     (response) => response,
@@ -41,11 +44,28 @@ apiClient.interceptors.response.use(
 
         if (error.response?.status === 401 && !originalRequest._retry && !isBlocklisted) {
             originalRequest._retry = true;
+
+            // If a refresh is already in progress, wait for it
+            if (!refreshPromise) {
+                refreshPromise = axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true })
+                    .then(res => {
+                        refreshPromise = null;
+                        return res.data.access_token;
+                    })
+                    .catch(err => {
+                        refreshPromise = null;
+                        throw err;
+                    });
+            }
+
             try {
-                // Use raw axios to bypass this interceptor for the refresh call itself
-                const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true });
-                useAuthStore.getState().setToken(data.access_token);
-                originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+                const access_token = await refreshPromise;
+
+                // Update memory store
+                useAuthStore.getState().setToken(access_token);
+
+                // Retry request
+                originalRequest.headers.Authorization = `Bearer ${access_token}`;
                 return apiClient(originalRequest);
             } catch (refreshError) {
                 // Refresh failed — clear auth state

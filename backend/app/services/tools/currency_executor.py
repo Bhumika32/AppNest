@@ -153,9 +153,12 @@ class CurrencyExecutor(ModuleExecutor):
         to_currency = payload.get("to_currency") or meta.get("to_currency") or meta.get("to")
 
         if not amount or not from_currency or not to_currency:
-            raise ValueError("amount, from_currency, and to_currency are required")
+            return {"error": "INVALID_INPUT", "message": "amount, from_currency, and to_currency are required"}
 
-        result = CurrencyService.convert(float(amount), from_currency, to_currency)
+        try:
+            result = CurrencyService.convert(float(amount), from_currency, to_currency)
+        except ValueError as e:
+            return {"error": "INVALID_INPUT", "message": str(e)}
         
         return {
             "amount": result.amount,
