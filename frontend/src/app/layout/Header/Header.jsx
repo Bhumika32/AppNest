@@ -1,11 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Search, Command, Activity, Shield } from 'lucide-react';
-import { useAuthStore } from '../../store/authStore.js';
-import { useUserStore } from '../../store/userStore.js';
-import { useUIStore } from '../../store/uiStore.js';
-import { USER_REALMS, ADMIN_REALMS } from '../../app/realmConstants.js';
-import NotificationPanel from '../../components/NotificationPanel.jsx';
+import { useAuthStore } from '../../../store/authStore.js';
+import { useUserStore } from '../../../store/userStore.js';
+import { useUIStore } from '../../../store/uiStore.js';
+import { USER_REALMS, ADMIN_REALMS } from '../../realmConstants.js';
+import NotificationPanel from '../../../components/NotificationPanel.jsx';
 
 const Header = () => {
     const user = useAuthStore(state => state.user);

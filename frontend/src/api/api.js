@@ -59,7 +59,8 @@ export const ModuleService = {
     getBySlug: (slug) => api.get(`/modules/${slug}`),
     trackStart: (moduleId) => api.post('/modules/analytics/start', { module_id: moduleId }),
     trackEnd: (entryId, duration) => api.post('/modules/analytics/end', { entry_id: entryId, duration }),
+    getGlobalLeaderboard: (limit = 10) => api.get('/modules/leaderboard', { params: { limit } }),
 };
 
-// Default export for any legacy code that does: import api from '../services/api'
+// Default export for any legacy code that does: import api from '../api/api'
 export { api as default };

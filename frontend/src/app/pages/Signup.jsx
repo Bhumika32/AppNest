@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore.js';
+import { useAuthStore } from '../../store/authStore.js';
 import { User, Lock, Mail, ChevronRight, Activity } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 
 const Signup = () => {
     const [step, setStep] = useState(1);

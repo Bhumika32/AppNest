@@ -2,10 +2,10 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Settings, Moon, Sun, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useAuthStore } from '../../store/authStore.js';
-import { useUIStore } from '../../store/uiStore.js';
-import { useTheme } from '../../context/ThemeContext.jsx';
-import { USER_REALMS, ADMIN_REALMS } from '../../app/realmConstants.js';
+import { useAuthStore } from '../../../store/authStore.js';
+import { useUIStore } from '../../../store/uiStore.js';
+import { useTheme } from '../../../context/ThemeContext.jsx';
+import { USER_REALMS, ADMIN_REALMS } from '../../realmConstants.js';
 //import Settings from "../pages/Settings"
 
 const NavItem = ({ realm, isSidebarCollapsed, currentRealm, setCurrentRealm, navigate, location }) => {

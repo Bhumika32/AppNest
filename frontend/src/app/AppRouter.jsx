@@ -7,11 +7,11 @@ import ProtectedRoute from '../components/ProtectedRoute.jsx';
 import AdminRoute from '../components/AdminRoute.jsx';
 
 // ── Public Pages ─────────────────────────────────────────────
-import WelcomePage from '../pages/AppNestWelcome.jsx';
-import LoginPage from '../pages/Login.jsx';
-import SignupPage from '../pages/Signup.jsx';
-import ForgotPassword from '../pages/ForgotPassword.jsx';
-import ResetPassword from '../pages/ResetPassword.jsx';
+import WelcomePage from './pages/AppNestWelcome.jsx';
+import LoginPage from './pages/Login.jsx';
+import SignupPage from './pages/Signup.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 
 // ── User Realms ──────────────────────────────────────────────
 import HomePortal from '../realms/home/HomePortal.jsx';
@@ -23,7 +23,7 @@ import Achievements from '../realms/profile/Achievements.jsx';
 import Leaderboard from '../realms/social/Leaderboard.jsx';
 import SocialHub from '../realms/social/SocialHub.jsx';
 import ModuleLoader from '../components/Module/ModuleLoader.jsx';
-import Settings from '../pages/Settings.jsx';
+import Settings from './pages/Settings.jsx';
 
 // ── Admin Realms ─────────────────────────────────────────────
 import AdminOverview from '../admin/overview/AdminOverview.jsx';

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UserService } from '../services/api';
+import { UserService } from '../api/api';
 
 export const useUserStore = create((set) => ({
     xp: 0,
@@ -52,27 +52,35 @@ export const useUserStore = create((set) => ({
     },
 
     addXp: (amount) => set((state) => {
-        const newXp = state.xp + amount;
-        // Update history for the current day (simplified)
+        let newXp = state.xp + amount;
+        let newLevel = state.level;
+        let nextLevelXp = state.nextLevelXp;
+
+        // Level up logic
+        while (newXp >= nextLevelXp) {
+            newXp -= nextLevelXp;
+            newLevel += 1;
+            nextLevelXp = Math.floor(100 + Math.pow(newLevel, 1.5) * 40);
+        }
+
+        // Update history for the current day
+        const today = new Date().toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
         const newHistory = [...state.performanceHistory];
-        // Ensure there's at least one entry or handle empty history
-        if (newHistory.length > 0) {
-            newHistory[newHistory.length - 1].xp += amount;
+        const todayEntry = newHistory.find(h => h.day === today);
+
+        if (todayEntry) {
+            todayEntry.xp += amount;
         } else {
-            // If history is empty, add a placeholder or handle as needed
-            newHistory.push({ day: 'Today', xp: amount, activity: 0 });
+            newHistory.push({ day: today, xp: amount });
+            if (newHistory.length > 7) newHistory.shift();
         }
 
-
-        if (newXp >= state.nextLevelXp) {
-            return {
-                xp: newXp - state.nextLevelXp,
-                level: state.level + 1,
-                nextLevelXp: Math.floor(state.nextLevelXp * 1.2),
-                performanceHistory: newHistory
-            };
-        }
-        return { xp: newXp, performanceHistory: newHistory };
+        return {
+            xp: newXp,
+            level: newLevel,
+            nextLevelXp,
+            performanceHistory: newHistory
+        };
     }),
 
     updateQuestProgress: (id, progress) => set((state) => ({
@@ -81,6 +89,6 @@ export const useUserStore = create((set) => ({
 
     setStats: (stats) => set({ ...stats }),
     addAchievement: (achievement) => set((state) => ({
-        achievements: [...state.achievements, achievement]
+        achievements: [achievement, ...state.achievements].slice(0, 50)
     })),
 }));

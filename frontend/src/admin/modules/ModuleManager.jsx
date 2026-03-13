@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit2, Trash2, Power, LayoutGrid, List, AlertCircle, CheckCircle, X } from 'lucide-react';
-import api from '../../services/apiClient';
+import api from '../../api/apiClient';
 
 const ModuleManager = () => {
     const [modules, setModules] = useState([]);

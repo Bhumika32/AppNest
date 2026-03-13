@@ -21,9 +21,9 @@ import {
     LogOut
 } from "lucide-react";
 
-import { useZoneStore, ZONES } from "../store/zoneStore";
-import { useAuthStore } from "../store/authStore.js";
-import ZoneCard from "../components/ZoneCard";
+import { useZoneStore, ZONES } from "../../store/zoneStore";
+import { useAuthStore } from "../../store/authStore.js";
+import ZoneCard from "../../components/ZoneCard";
 
 // Map Lucide icons from string names in store
 const iconMap = {

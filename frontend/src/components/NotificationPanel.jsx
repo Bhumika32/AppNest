@@ -11,7 +11,7 @@ import {
     Bell, Zap, Flame, Trophy, Star, Info, AlertCircle,
     CheckCheck, Trash2, X
 } from 'lucide-react';
-import { useNotificationStore } from '../store/notificationStore.js';
+import { useNotificationStore } from '../store/notificationStore';
 import { createPortal } from "react-dom";
 
 // ── Type config ────────────────────────────────────────────────
@@ -54,7 +54,7 @@ const NotifRow = ({ notif, onRead }) => {
                 border-b border-white/5 last:border-0`}
         >
             {/* Unread dot */}
-            {!notif.seen && (
+            {!notif.read && (
                 <span className="absolute top-4 right-4 w-1.5 h-1.5 bg-neon-blue rounded-full animate-pulse" />
             )}
 
@@ -100,8 +100,8 @@ const NotificationPanel = () => {
     const panelRef = useRef(null);
     const btnRef = useRef(null);
 
-    const { notifications, markAsRead, markAllAsRead, clearAll, fetchNotifications } = useNotificationStore();
-    const unread = notifications.filter(n => !n.seen).length;
+    const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll, fetchNotifications } = useNotificationStore();
+    const unread = unreadCount;
 
     // Close on outside click
     useEffect(() => {
@@ -117,20 +117,18 @@ const NotificationPanel = () => {
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    // When opening panel, fetch latest notifications then mark as read
+    // When opening panel, fetch latest notifications if needed
     const handleOpen = useCallback(async () => {
         const willOpen = !open;
         setOpen(willOpen);
 
         if (willOpen && btnRef.current) {
+            const r = btnRef.current.getBoundingClientRect();
+            setRect(r);
 
-            const r = btnRef.current.getBoundingClientRect(); // NEW
-            setRect(r);                                       // NEW
-
-            await fetchNotifications(100, false);
-            // await markAllAsRead();
+            await fetchNotifications();
         }
-    }, [open, fetchNotifications, markAllAsRead]);
+    }, [open, fetchNotifications]);
 
     return (
         <div className="relative">
@@ -159,99 +157,99 @@ const NotificationPanel = () => {
             </button>
 
             {/* Dropdown Panel */}
-        {createPortal(
-  <AnimatePresence>
-    {open && (
-      <motion.div
-        ref={panelRef}
-        initial={{ opacity: 0, y: -8, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -8, scale: 0.97 }}
-        className="fixed w-96 max-h-[70vh] flex flex-col rounded-2xl bg-dark-surface/95 backdrop-blur-xl border border-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.6)] z-[9999] overflow-hidden"
-        style={{
-            top: rect ? rect.bottom + 8 : 80,
-            left: rect ? rect.right - 384 : window.innerWidth - 420
-            }}
-      >
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
-                            <div className="flex items-center gap-2">
-                                <Bell size={16} className="text-neon-blue" />
-                                <h3 className="text-sm font-black text-white">Notifications</h3>
-                                {unread > 0 && (
-                                    <span className="text-[9px] font-black bg-neon-pink/20 text-neon-pink px-1.5 py-0.5 rounded-full border border-neon-pink/30">
-                                        {unread} new
-                                    </span>
-                                )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {unread > 0 && (
+            {createPortal(
+                <AnimatePresence>
+                    {open && (
+                        <motion.div
+                            ref={panelRef}
+                            initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                            className="fixed w-96 max-h-[70vh] flex flex-col rounded-2xl bg-dark-surface/95 backdrop-blur-xl border border-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.6)] z-[9999] overflow-hidden"
+                            style={{
+                                top: rect ? rect.bottom + 8 : 80,
+                                left: rect ? rect.right - 384 : window.innerWidth - 420
+                            }}
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <Bell size={16} className="text-neon-blue" />
+                                    <h3 className="text-sm font-black text-white">Notifications</h3>
+                                    {unread > 0 && (
+                                        <span className="text-[9px] font-black bg-neon-pink/20 text-neon-pink px-1.5 py-0.5 rounded-full border border-neon-pink/30">
+                                            {unread} new
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {unread > 0 && (
+                                        <button
+                                            onClick={markAllAsRead}
+                                            title="Mark all as read"
+                                            className="p-1.5 rounded-lg text-gray-500 hover:text-neon-blue hover:bg-neon-blue/10 transition-all"
+                                        >
+                                            <CheckCheck size={14} />
+                                        </button>
+                                    )}
+                                    {notifications.length > 0 && (
+                                        <button
+                                            onClick={clearAll}
+                                            title="Clear all"
+                                            className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
                                     <button
-                                        onClick={markAllAsRead}
-                                        title="Mark all as read"
-                                        className="p-1.5 rounded-lg text-gray-500 hover:text-neon-blue hover:bg-neon-blue/10 transition-all"
+                                        onClick={() => setOpen(false)}
+                                        className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-all"
                                     >
-                                        <CheckCheck size={14} />
+                                        <X size={14} />
                                     </button>
-                                )}
-                                {notifications.length > 0 && (
-                                    <button
-                                        onClick={clearAll}
-                                        title="Clear all"
-                                        className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => setOpen(false)}
-                                    className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-all"
-                                >
-                                    <X size={14} />
-                                </button>
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Notification List */}
-                        <div className="flex-1 overflow-y-auto scrollbar-none">
-                            <AnimatePresence initial={false}>
-                                {notifications.length === 0 ? (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        className="flex flex-col items-center justify-center py-14 text-center gap-3"
-                                    >
-                                        <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-                                            <Bell size={20} className="text-gray-600" />
-                                        </div>
-                                        <p className="text-sm font-bold text-gray-500">No new notifications available.</p>
-                                        <p className="text-[11px] text-gray-600">You can view past notifications here.</p>
-                                    </motion.div>
-                                ) : (
-                                    notifications.map(n => (
-                                        <NotifRow
-                                            key={n.id}
-                                            notif={n}
-                                            onRead={markAsRead}
-                                        />
-                                    ))
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        {/* Footer */}
-                        {notifications.length > 0 && (
-                            <div className="px-4 py-2 border-t border-white/5 flex-shrink-0">
-                                <p className="text-[10px] text-gray-600 text-center">
-                                    {notifications.length} total · {unread} unread
-                                </p>
+                            {/* Notification List */}
+                            <div className="flex-1 overflow-y-auto scrollbar-none">
+                                <AnimatePresence initial={false}>
+                                    {notifications.length === 0 ? (
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            className="flex flex-col items-center justify-center py-14 text-center gap-3"
+                                        >
+                                            <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+                                                <Bell size={20} className="text-gray-600" />
+                                            </div>
+                                            <p className="text-sm font-bold text-gray-500">No new notifications available.</p>
+                                            <p className="text-[11px] text-gray-600">You can view past notifications here.</p>
+                                        </motion.div>
+                                    ) : (
+                                        notifications.map(n => (
+                                            <NotifRow
+                                                key={n.id}
+                                                notif={n}
+                                                onRead={markAsRead}
+                                            />
+                                        ))
+                                    )}
+                                </AnimatePresence>
                             </div>
-                        )}
-                    </motion.div>
-    )}
-  </AnimatePresence>,
-  document.body
-)}
+
+                            {/* Footer */}
+                            {notifications.length > 0 && (
+                                <div className="px-4 py-2 border-t border-white/5 flex-shrink-0">
+                                    <p className="text-[10px] text-gray-600 text-center">
+                                        {notifications.length} total · {unread} unread
+                                    </p>
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 }

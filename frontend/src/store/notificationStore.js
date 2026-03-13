@@ -1,113 +1,159 @@
-/**
- * notificationStore.js
- * Powers the XP toast, streak, level-up, and achievement notification system.
- * Toast types: 'xp' | 'level_up' | 'streak' | 'achievement' | 'info' | 'error'
- */
 import { create } from 'zustand';
-import { NotificationService } from '../services/api';
+import { io } from 'socket.io-client';
+import { NotificationService } from '../api/api';
+import { useAuthStore } from './authStore';
+import { useUserStore } from './userStore';
+import { useOverlayStore } from './overlayStore';
 
-// Toast auto-dismiss durations (ms)
-const DURATION = {
-    xp: 3500,
-    level_up: 6000,
-    streak: 4500,
-    achievement: 5000,
-    info: 3000,
-    error: 4000,
-};
+let socket = null;
 
 export const useNotificationStore = create((set, get) => ({
-    toasts: [],        // Active on-screen toasts (auto-dismissed)
-    notifications: [], // Persistent notification bell list
+    notifications: [],
+    unreadCount: 0,
+    connectionStatus: 'disconnected',
+    toasts: [],
 
-    /**
-     * Primary entry point. Usage:
-     *   useNotificationStore.getState().notify({ type: 'xp', message: '+50 XP!', amount: 50 })
-     */
-    notify: (notification) => {
-        const id = Date.now() + Math.random();
-        const duration = notification.duration ?? DURATION[notification.type] ?? 3500;
-        const toast = { id, seen: false, timestamp: new Date(), ...notification };
+    // Toast Management
+    notify: (toast) => {
+        const id = Math.random().toString(36).substring(2, 9);
+        const newToast = { ...toast, id };
 
         set((state) => ({
-            toasts: [...state.toasts, toast],
-            notifications: [toast, ...state.notifications].slice(0, 50), // keep last 50
+            toasts: [...state.toasts, newToast].slice(-5) // Keep last 5 toasts
         }));
 
-        // Auto-dismiss toast
+        // Auto-dismiss after 5 seconds
         setTimeout(() => {
-            set((state) => ({ toasts: state.toasts.filter(t => t.id !== id) }));
-        }, duration);
+            get().dismissToast(id);
+        }, 5000);
     },
 
-    dismissToast: (id) => set((state) => ({ toasts: state.toasts.filter(t => t.id !== id) })),
+    dismissToast: (id) => {
+        set((state) => ({
+            toasts: state.toasts.filter(t => t.id !== id)
+        }));
+    },
 
-    // Mark single notification as read (persist to backend when possible)
+    // Initialize WebSocket connection
+    initSocket: () => {
+        if (socket) return;
+
+        const token = useAuthStore.getState().token;
+        // Use environment variable or default to localhost:5000
+        const socketUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+        socket = io(socketUrl, {
+            query: { token },
+            transports: ['websocket'],
+            reconnectionAttempts: 5
+        });
+
+        socket.on('connect', () => {
+            set({ connectionStatus: 'connected' });
+            console.log('Connected to Neural Link (WebSocket)');
+        });
+
+        socket.on('disconnect', () => {
+            set({ connectionStatus: 'disconnected' });
+        });
+
+        socket.on('notification', (notification) => {
+            // Add to local list
+            set((state) => ({
+                notifications: [notification, ...state.notifications].slice(0, 100),
+                unreadCount: state.unreadCount + 1
+            }));
+
+            // Handle special internal events via notifications
+            if (notification.type === 'credit' && notification.data?.xp) {
+                useUserStore.getState().addXp(notification.data.xp);
+            }
+        });
+
+        socket.on('ux_event', (event) => {
+            const { type, delivery, message, title, data } = event;
+
+            if (delivery === 'toast') {
+                get().notify({
+                    type: type === 'xp_awarded' ? 'xp' : (type === 'level_up' ? 'level_up' : 'info'),
+                    title: title || 'Neural Update',
+                    message: message || (type === 'xp_awarded' ? `+${data?.xp_awarded} XP` : ''),
+                    amount: data?.xp_awarded,
+                    ...data
+                });
+
+                // Keep store XP in sync
+                if (type === 'xp_awarded' && data?.xp_awarded) {
+                    useUserStore.getState().addXp(data.xp_awarded);
+                }
+            } else if (delivery === 'overlay') {
+                useOverlayStore.getState().showOverlay(event);
+            } else if (delivery === 'notification') {
+                // Persistent notifications are already created in DB and fetched
+                // But we can add it to the local list for zero-latency feel
+                set((state) => ({
+                    notifications: [event, ...state.notifications].slice(0, 100),
+                    unreadCount: state.unreadCount + 1
+                }));
+            }
+        });
+
+        socket.on('connection_success', (data) => {
+            console.log('Server Ack:', data.message);
+        });
+    },
+
+    disconnectSocket: () => {
+        if (socket) {
+            socket.disconnect();
+            socket = null;
+            set({ connectionStatus: 'disconnected' });
+        }
+    },
+
+    fetchNotifications: async () => {
+        try {
+            const { data } = await NotificationService.getAll();
+            const notifications = data.notifications || [];
+            const unreadCount = notifications.filter(n => !n.read).length;
+            set({ notifications, unreadCount });
+        } catch (error) {
+            console.error('Failed to fetch notifications:', error);
+        }
+    },
+
     markAsRead: async (id) => {
         try {
-            // attempt backend update
             await NotificationService.markAsRead(id);
-        } catch (e) {
-            // ignore network errors — still update UI optimistically
-            console.warn('markAsRead failed:', e);
+            set((state) => ({
+                notifications: state.notifications.map(n => n.id === id ? { ...n, read: true } : n),
+                unreadCount: Math.max(0, state.unreadCount - 1)
+            }));
+        } catch (error) {
+            console.error('Failed to mark notification as read:', error);
         }
-        set((state) => ({
-            notifications: state.notifications.map(n => n.id === id ? { ...n, seen: true } : n)
-        }));
     },
 
-    // Mark all as read (backend + local)
     markAllAsRead: async () => {
         try {
             await NotificationService.markAllAsRead();
-        } catch (e) {
-            console.warn('markAllAsRead failed:', e);
+            set((state) => ({
+                notifications: state.notifications.map(n => ({ ...n, read: true })),
+                unreadCount: 0
+            }));
+        } catch (error) {
+            console.error('Failed to mark all as read:', error);
         }
-        set((state) => ({
-            notifications: state.notifications.map(n => ({ ...n, seen: true }))
-        }));
     },
 
-    // Clear all notifications (delete on backend and locally)
     clearAll: async () => {
         try {
             await NotificationService.clearAll();
-        } catch (e) {
-            console.warn('clearAll failed:', e);
+            set({ notifications: [], unreadCount: 0 });
+        } catch (error) {
+            console.error('Failed to clear notifications:', error);
         }
-        set({ notifications: [] });
-    },
-
-    // Set notifications directly (used when loading from backend)
-    setNotifications: (items) => set({ notifications: items.slice(0, 200) }),
-
-    // Fetch notifications from backend and populate store
-    fetchNotifications: async (limit = 50, unreadOnly = false) => {
-        try {
-            const resp = await NotificationService.getAll(limit, unreadOnly);
-            const data = resp.data || {};
-            const list = (data.notifications || []).map((n) => ({
-                id: n.id,
-                seen: !!n.read,
-                timestamp: n.created_at || n.createdAt || n.timestamp,
-                title: n.title,
-                message: n.message,
-                type: n.type || 'info',
-                data: n.data || {},
-            }));
-            set({ notifications: list });
-        } catch (e) {
-            console.warn('Failed to fetch notifications:', e);
-        }
-    },
-
-    // Computed helper — use as: useNotificationStore(state => state.unreadCount())
-    unreadCount: () => {
-        return useNotificationStore.getState().notifications.filter(n => !n.seen).length;
-    },
-
-    // ── Legacy compat ─────────────────────────────────────
-    addNotification: (notification) => get().notify(notification),
+    }
 }));
 
-
+export default useNotificationStore;

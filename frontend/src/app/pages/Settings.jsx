@@ -18,8 +18,8 @@ import {
   X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useAuthStore } from '../store/authStore';
-import { UserService } from '../services/api';
+import { useAuthStore } from '../../store/authStore';
+import { UserService } from '../../api/api';
 
 const Settings = () => {
   const navigate = useNavigate();

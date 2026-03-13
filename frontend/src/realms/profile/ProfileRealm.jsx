@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { User, Mail, Shield, Award, Activity, Edit3, Key } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
 import { useUserStore } from '../../store/userStore.js';
-import { UserService } from '../../services/api';
+import { UserService } from '../../api/api';
 import { useState, useRef } from 'react';
 import { Settings } from 'lucide-react';
 //import Settings from "../../pages/Settings";

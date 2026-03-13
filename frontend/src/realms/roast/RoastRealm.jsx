@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Flame, Target, MessageSquare, History, ShieldAlert } from 'lucide-react';
-import { RoastService } from '../../services/api';
+import { RoastService } from '../../api/api';
 
 const RoastRealm = () => {
     const [roastType, setRoastType] = useState('normal');

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { adminService } from '../services/adminService';
+import { adminService } from '../api/adminService';
 
 export const useAdminAnalyticsStore = create((set) => ({
     stats: {

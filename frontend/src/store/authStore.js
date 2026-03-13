@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { AuthService } from '../services/api';
+import { AuthService } from '../api/api';
 
 // Base store with persistence
 const useAuthStore = create(

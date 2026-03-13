@@ -1,8 +1,8 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import Sidebar from '../layout/Sidebar/Sidebar.jsx';
-import Header from '../layout/Header/Header.jsx';
-import Footer from '../layout/Footer/Footer.jsx';
+import Sidebar from './layout/Sidebar/Sidebar.jsx';
+import Header from './layout/Header/Header.jsx';
+import Footer from './layout/Footer/Footer.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUserStore } from '../store/userStore.js';
 import { useAdminAnalyticsStore } from '../store/adminAnalyticsStore.js';
@@ -12,6 +12,7 @@ import { useUIStore } from '../store/uiStore.js';
 import { useNotificationStore } from '../store/notificationStore.js';
 import ErrorBoundary from '../components/ErrorBoundary.jsx';
 import ToastManager from '../components/ToastManager.jsx';
+import SystemOverlayManager from '../components/SystemOverlayManager.jsx';
 
 // ---------------------------------------------------------
 // AppShell Content and Logic
@@ -24,6 +25,8 @@ const AppShellContent = () => {
     const role = useAuthStore(state => state.role);
     const checkAndUpdateStreak = useUIStore(state => state.checkAndUpdateStreak);
     const notify = useNotificationStore(state => state.notify);
+    const initSocket = useNotificationStore(state => state.initSocket);
+    const disconnectSocket = useNotificationStore(state => state.disconnectSocket);
 
     // Track previous level to detect level-ups
     const prevLevelRef = React.useRef(level);
@@ -81,7 +84,10 @@ const AppShellContent = () => {
     React.useEffect(() => {
         fetchDashboard();
         fetchModules();
+        initSocket();
         if (role === 'admin') fetchStats();
+
+        return () => disconnectSocket();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
@@ -125,6 +131,9 @@ const AppShellContent = () => {
 
             {/* 🔔 Toast Notification Layer */}
             <ToastManager />
+
+            {/* 🎭 Feedback Overlay Layer (Roasts & Tips) */}
+            <SystemOverlayManager />
         </div>
     );
 };

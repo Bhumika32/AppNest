@@ -2,17 +2,21 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, Info, Settings2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import SystemDialogPanel from '../../game-engine/personality/SystemDialogPanel.jsx';
-import { personalityEngine } from '../../game-engine/personality/personalityEngine.js';
-import { useModuleStore } from '../../store/moduleStore.js';
-import { useUserStore } from '../../store/userStore.js';
-import ModuleExecutionService from '../../services/moduleExecutionService.js';
+import SystemDialogPanel from '../../../engine/personality/SystemDialogPanel.jsx';
+import { personalityEngine } from '../../../engine/personality/personalityEngine.js';
+import { useModuleStore } from '../../../store/moduleStore.js';
+import { useUserStore } from '../../../store/userStore.js';
+import { useNotificationStore } from '../../../store/notificationStore.js';
+import { useOverlayStore } from '../../../store/overlayStore.js';
+import ModuleExecutionService from '../../../api/moduleExecutionService.js';
 
 const ToolLayout = React.memo(({ children, module }) => {
     const navigate = useNavigate();
     const fetchDashboard = useUserStore(state => state.fetchDashboard);
     const trackLaunch = useModuleStore(state => state.trackLaunch);
     const trackEnd = useModuleStore(state => state.trackEnd);
+    const notify = useNotificationStore(state => state.notify);
+    const showOverlay = useOverlayStore(state => state.showOverlay);
     const [dialog, setDialog] = React.useState({ active: false, message: '', type: 'info' });
     const [entryId, setEntryId] = React.useState(null);
     const [sessionStart, setSessionStart] = React.useState(null);
@@ -37,11 +41,11 @@ const ToolLayout = React.memo(({ children, module }) => {
                 trackEnd(entryId, duration);
             }
         };
-    }, [module.id, entryId, sessionStart, trackEnd, trackLaunch]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [module.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const showSystemDialog = React.useCallback((eventCategory, type = 'info') => {
         const msg = personalityEngine.getSystemDialog(eventCategory);
-        if (!msg) return; // Respect cooldown
+        if (!msg) return;
         setDialog({ active: true, message: msg, type });
         setTimeout(() => setDialog(prev => ({ ...prev, active: false })), 4000);
     }, []);
@@ -51,24 +55,74 @@ const ToolLayout = React.memo(({ children, module }) => {
         completedRef.current = true;
 
         try {
-            await ModuleExecutionService.execute(module.slug, {
+            const result = await ModuleExecutionService.execute(module.slug, {
                 module_id: module.id,
                 duration: payload.duration || 0,
                 score: payload.score || 10,
                 difficulty: 'EASY',
                 result: 'completed',
                 metadata: payload.metadata || {},
-                entry_id: entryId
+                entry_id: entryId,
+                completed: true,
             });
-            fetchDashboard(); // updating top bar xp
+
+            // Refresh dashboard XP bar
+            fetchDashboard();
+
+            // --- XP Toast (client-side fallback if socket is slow) ---
+            const xpReward = result?.lifecycle?.xp_reward;
+            if (xpReward?.xp_awarded) {
+                notify({
+                    type: 'xp',
+                    title: 'XP Earned',
+                    message: `+${xpReward.xp_awarded} XP`,
+                    amount: xpReward.xp_awarded,
+                });
+            }
+
+            // --- Module Complete Toast ---
+            notify({
+                type: 'success',
+                title: 'Activity Complete',
+                message: `${module.name} finished!`,
+            });
+
+            // --- Roast Overlay (client-side fallback if socket is slow) ---
+            const roast = result?.roast;
+            if (roast) {
+                showOverlay({
+                    type: 'roast',
+                    delivery: 'overlay',
+                    message: roast,
+                    icon: 'Flame',
+                    color: 'neon-pink',
+                });
+            }
+
+            // --- Mentor Tip Overlay (client-side fallback) ---
+            const advice = result?.advice;
+            if (advice) {
+                // Show mentor tip briefly after roast
+                setTimeout(() => {
+                    showOverlay({
+                        type: 'mentor_tip',
+                        delivery: 'overlay',
+                        message: advice,
+                        icon: 'Lightbulb',
+                        color: 'neon-blue',
+                    });
+                }, roast ? 4500 : 0);
+            }
+
+            // --- Personality dialog ---
             if (payload.eventCategory) {
                 showSystemDialog(payload.eventCategory, 'success');
             }
         } catch (e) {
-            console.error("Tool completion failed", e);
+            console.error('Tool completion failed', e);
             completedRef.current = false; // Allow retry on failure
         }
-    }, [entryId, fetchDashboard, module.id, module.slug, showSystemDialog]);
+    }, [entryId, fetchDashboard, module.id, module.name, module.slug, notify, showOverlay, showSystemDialog]);
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">

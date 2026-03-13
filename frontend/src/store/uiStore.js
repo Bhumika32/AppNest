@@ -60,15 +60,15 @@ export const useUIStore = create(
             },
             resetStreak: () => set({ streak: 0, longestStreak: 0, lastLoginDate: null }),
 
-            // Roast Module State (moved here as UI plugin state)
-            activePersonality: 'sarcastic-sage',
+            // Roast Module State
             roastHistory: [],
-            personalities: [
-                { id: 'sarcastic-sage', name: 'Sarcastic Sage' },
-                { id: 'brutal-bard', name: 'Brutal Bard' },
-            ],
-            setPersonality: (id) => set({ activePersonality: id }),
-            addRoast: (roast) => set((state) => ({ roastHistory: [roast, ...state.roastHistory] })),
+            addRoast: (roast) => set((state) => ({
+                roastHistory: [
+                    { ...roast, timestamp: new Date().toISOString() },
+                    ...state.roastHistory
+                ].slice(0, 50)
+            })),
+            clearRoasts: () => set({ roastHistory: [] }),
         }),
         {
             name: 'appnest-ui-storage',

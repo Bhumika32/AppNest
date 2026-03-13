@@ -4,15 +4,17 @@ import GameSetupModal from './GameSetupModal.jsx';
 import BattleArenaLayout from './BattleArenaLayout.jsx';
 import XPRewardOverlay from './XPRewardOverlay.jsx';
 import { useUserStore } from '../store/userStore.js';
+import { useOverlayStore } from '../store/overlayStore.js';
 import RoastOverlay from './personality/RoastOverlay.jsx';
 import { personalityEngine } from './personality/personalityEngine.js';
-import ModuleExecutionService from '../services/moduleExecutionService.js';
+import ModuleExecutionService from '../api/moduleExecutionService.js';
 import ErrorBoundary from '../components/ErrorBoundary.jsx';
 
 const GameEngine = React.memo(({ module, children }) => {
     const trackLaunch = useModuleStore(state => state.trackLaunch);
     const trackEnd = useModuleStore(state => state.trackEnd);
     const fetchDashboard = useUserStore(state => state.fetchDashboard);
+    const showOverlay = useOverlayStore(state => state.showOverlay);
 
     const sessionStartedRef = React.useRef(false);
     const completedRef = React.useRef(false);
@@ -69,21 +71,39 @@ const GameEngine = React.memo(({ module, children }) => {
                 difficulty: config?.difficulty || 'EASY',
                 result: resultData.win ? 'win' : (resultData.result || 'completed'),
                 metadata: resultData.metadata,
-                entry_id: entryId
+                entry_id: entryId,
+                completed: true,
             });
 
             if (res?.lifecycle?.xp_reward) {
                 setXpData(res.lifecycle.xp_reward);
                 setEngineState('REWARD');
-                fetchDashboard(); // Refresh header user info
             } else {
-                // If it doesn't give XP for some reason (maybe a tool?) just finish
-                // Could route them or reset
                 setEngineState('SETUP');
+            }
+
+            fetchDashboard();
+
+            // Show roast via in-game overlay (speech bubble style)
+            if (res?.roast) {
+                setRoast({ active: true, message: res.roast });
+                setTimeout(() => setRoast(prev => ({ ...prev, active: false })), 5000);
+            }
+
+            // Show mentor tip via global overlay (after roast clears)
+            if (res?.advice) {
+                setTimeout(() => {
+                    showOverlay({
+                        type: 'mentor_tip',
+                        delivery: 'overlay',
+                        message: res.advice,
+                        icon: 'Lightbulb',
+                        color: 'neon-blue',
+                    });
+                }, res?.roast ? 5500 : 0);
             }
         } catch (e) {
             console.error("Failed to complete module", e);
-            // Handle error state or just return to setup
             setEngineState('SETUP');
         }
     }, [config, entryId, fetchDashboard, module.id, module.slug, sessionStart, trackEnd]);
@@ -96,7 +116,6 @@ const GameEngine = React.memo(({ module, children }) => {
     }, []);
 
     const handleRewardClose = () => {
-        // Reset refs for next potential session if they stay on page
         sessionStartedRef.current = false;
         completedRef.current = false;
 
@@ -105,12 +124,11 @@ const GameEngine = React.memo(({ module, children }) => {
         setXpData(null);
     };
 
-    // We use React.Children.map to inject the "engine" context into the children
-    // So the game itself can call engine.endGame({ score, win, etc.. })
     const engineContext = React.useMemo(() => ({
-        config, // This is null until handleStart
+        config,
         endGame: handleEndGame,
-        showRoast: showRoast
+        showRoast,
+        completedRef,
     }), [config, handleEndGame, showRoast]);
 
     return (

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ModuleService } from '../services/api';
+import { ModuleService } from '../api/api';
 
 export const useModuleStore = create((set, get) => ({
     modules: [],

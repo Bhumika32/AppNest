@@ -2,15 +2,15 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import {
     Activity, Trophy, Clock, Gamepad2, Wrench, Zap,
-    ChevronRight, ArrowUpRight
+    ChevronRight, ArrowUpRight, BrainCircuit, Sparkles
 } from 'lucide-react';
 import {
     ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
     CartesianGrid, Tooltip
 } from 'recharts';
-import { useAuthStore } from '../../store/authStore.js';
-import { useUserStore } from '../../store/userStore.js';
-import LoadingSkeleton, { ChartSkeleton, BountySkeleton } from '../../components/LoadingSkeleton.jsx';
+import { useAuthStore } from '../../store/authStore';
+import { useUserStore } from '../../store/userStore';
+import LoadingSkeleton, { ChartSkeleton, BountySkeleton } from '../../components/LoadingSkeleton';
 
 const RealmCard = ({ title, subtitle, icon: Icon, color }) => (
     <motion.div
@@ -39,8 +39,6 @@ const HomePortal = () => {
     const error = useUserStore(state => state.error);
     const fetchDashboard = useUserStore(state => state.fetchDashboard);
 
-
-
     if (error) {
         return (
             <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 text-center max-w-2xl mx-auto my-20">
@@ -61,7 +59,6 @@ const HomePortal = () => {
 
     return (
         <div className="space-y-8 max-w-7xl mx-auto pb-12">
-            {/* ... rest of the component ... */}
             {/* Hero Section */}
             <section className="relative rounded-3xl overflow-hidden bg-dark-surface/30 border border-white/5 p-8 lg:p-12">
                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-neon-blue/5 blur-[120px] -mr-48 -mt-48 rounded-full" />
@@ -182,42 +179,67 @@ const HomePortal = () => {
                     </div>
                 </section>
 
-                {/* Daily Quests List */}
-                <section className="bg-dark-surface/40 border border-white/5 rounded-3xl p-8 backdrop-blur-sm">
-                    <h3 className="font-black text-xl mb-8 flex items-center gap-3">
-                        <Trophy size={22} className="text-neon-pink" />
-                        ACTIVE BOUNTIES
-                    </h3>
-                    {isLoading ? (
-                        <BountySkeleton />
-                    ) : (
-                        <div className="space-y-6">
-                            {dailyQuests.map((q) => (
-                                <div key={q.id} className="flex flex-col gap-3 group cursor-help">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-xs font-bold text-gray-300 group-hover:text-white transition-colors">{q.task}</span>
-                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded border border-${q.color}/20 bg-${q.color}/5 text-neon-blue`}>
-                                            {q.reward}
-                                        </span>
-                                    </div>
-                                    <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${q.progress}%` }}
-                                            className={`h-full bg-gradient-to-r from-neon-blue to-neon-pink rounded-full transition-all duration-1000`}
-                                        />
-                                    </div>
-                                    <div className="flex justify-end text-[8px] font-black text-gray-600 uppercase tracking-widest">
-                                        {q.progress}% Complete
-                                    </div>
-                                </div>
-                            ))}
+                {/* AI Mentor & Quests Panel */}
+                <aside className="space-y-8">
+                    {/* AI Mentor Advice */}
+                    <section className="bg-gradient-to-br from-neon-blue/20 to-neon-pink/20 border border-white/10 rounded-3xl p-8 relative overflow-hidden group">
+                        <div className="absolute -top-4 -right-4 text-white/5 group-hover:text-white/10 transition-colors">
+                            <BrainCircuit size={120} />
                         </div>
-                    )}
-                    <button className="w-full mt-10 py-3 border border-white/5 hover:border-white/10 hover:bg-white/5 rounded-xl text-[10px] font-black text-gray-500 uppercase tracking-widest transition-all">
-                        Refresh Bounty Board
-                    </button>
-                </section>
+                        <h3 className="font-black text-sm mb-6 flex items-center gap-3 text-white uppercase tracking-widest">
+                            <Sparkles size={16} className="text-neon-blue" />
+                            Neural Advisor
+                        </h3>
+                        <div className="relative z-10">
+                            <p className="text-sm font-medium text-gray-200 leading-relaxed italic">
+                                "Your recent performance in Tic Tac Toe suggests a tactical deviation. Try controlling the center square to optimize your neural XP yield."
+                            </p>
+                            <div className="mt-6 flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-neon-blue/20 flex items-center justify-center text-neon-blue">
+                                    <Activity size={14} />
+                                </div>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Status: Analyzing...</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Daily Quests List */}
+                    <section className="bg-dark-surface/40 border border-white/5 rounded-3xl p-8 backdrop-blur-sm">
+                        <h3 className="font-black text-xl mb-8 flex items-center gap-3">
+                            <Trophy size={22} className="text-neon-pink" />
+                            ACTIVE BOUNTIES
+                        </h3>
+                        {isLoading ? (
+                            <BountySkeleton />
+                        ) : (
+                            <div className="space-y-6">
+                                {dailyQuests.map((q) => (
+                                    <div key={q.id} className="flex flex-col gap-3 group cursor-help">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs font-bold text-gray-300 group-hover:text-white transition-colors">{q.task}</span>
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded border border-white/20 bg-white/5 text-neon-blue`}>
+                                                {q.reward}
+                                            </span>
+                                        </div>
+                                        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${q.progress}%` }}
+                                                className={`h-full bg-gradient-to-r from-neon-blue to-neon-pink rounded-full transition-all duration-1000`}
+                                            />
+                                        </div>
+                                        <div className="flex justify-end text-[8px] font-black text-gray-600 uppercase tracking-widest">
+                                            {q.progress}% Complete
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <button className="w-full mt-10 py-3 border border-white/5 hover:border-white/10 hover:bg-white/5 rounded-xl text-[10px] font-black text-gray-500 uppercase tracking-widest transition-all">
+                            Refresh Bounty Board
+                        </button>
+                    </section>
+                </aside>
             </div>
 
             {/* Featured Realms */}

@@ -1,10 +1,10 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useModuleStore } from '../../store/moduleStore.js';
-import { moduleRegistry } from '../../registry/moduleRegistry.js';
+import { moduleRegistry } from '../../registry/ModuleRegistry';
 import { Loader2, AlertCircle } from 'lucide-react';
-import ToolLayout from '../../layout/Module/ToolLayout.jsx';
-import GameEngine from '../../game-engine/GameEngine.jsx';
+import ToolLayout from '../../app/layout/Module/ToolLayout.jsx';
+import GameEngine from '../../engine/GameEngine.jsx';
 
 const ModuleLoader = () => {
     const { slug } = useParams();
