@@ -1,17 +1,17 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import * as authApi from '../api/auth.api.js';
+import { AuthService } from '../api/api';
 
 // Base store with persistence
 const useAuthStore = create(
   persist(
     (set, get) => ({
       user: null,
-      token: null, // Access token in memory
+      token: null, // Access token strictly in memory
       isAuthenticated: false,
       role: 'user',
       isLoading: false,
-      isInitializing: true,
+      isInitializing: true, // App starts in initializing state
       error: null,
 
       setToken: (token) => set({ token, isAuthenticated: !!token }),
@@ -20,14 +20,14 @@ const useAuthStore = create(
       login: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await authApi.loginUser({ email, password });
+          const response = await AuthService.login({ email, password });
           const { user, access_token } = response.data;
 
           set({
             user,
             token: access_token,
             isAuthenticated: true,
-            role: (user.role || 'user').toLowerCase(),  // ✅ Normalize to lowercase
+            role: (user.role || 'user').toLowerCase(),
             isLoading: false
           });
           return true;
@@ -40,32 +40,81 @@ const useAuthStore = create(
         }
       },
 
+      /**
+       * ── Application Boot Flow ───────────────────────────────────────────
+       * 1. POST /auth/refresh (silent refresh via HttpOnly cookie)
+       * 2. If success -> store access token -> GET /auth/me
+       * 3. Update state
+       * 4. Set isInitializing = false
+       */
       checkAuth: async () => {
         set({ isInitializing: true });
+
         try {
-          const response = await authApi.getMe();
-          const { user } = response.data;
+          // Step 1: silent refresh
+          const refreshResponse = await AuthService.refresh();
+          const { access_token } = refreshResponse.data;
+
+          set({
+            token: access_token,
+            isAuthenticated: true
+          });
+
+          // Step 2: fetch profile
+          const userResponse = await AuthService.getMe();
+          const user = userResponse.data;
+
           set({
             user,
-            isAuthenticated: true,
-            role: (user.role || 'user').toLowerCase(),  // ✅ Normalize to lowercase
+            role: (user.role || 'user').toLowerCase(),
             isInitializing: false
           });
+
         } catch (error) {
-          // If 401, axios interceptor will try refresh. 
-          // If that fails too, we land here.
+
           set({
             user: null,
             token: null,
             isAuthenticated: false,
             isInitializing: false
           });
+
         }
       },
+      // checkAuth: async () => {
+      //   set({ isInitializing: true });
+      //   try {
+      //     // Step 1: Attempt silent refresh
+      //     const refreshResponse = await AuthService.refresh();
+      //     const { access_token } = refreshResponse.data;
+
+      //     set({ token: access_token });
+
+      //     // Step 2: Fetch user profile with new access token
+      //     const userResponse = await AuthService.getMe();
+      //     // const { user } = userResponse.data;
+      //     const user = userResponse.data; // Assuming /auth/me returns user directly
+
+      //     set({
+      //       user,
+      //       isAuthenticated: true,
+      //       role: (user.role || 'user').toLowerCase(),
+      //       isInitializing: false
+      //     });
+      //   } catch (error) {
+      //     // If refresh fails or me fails -> user is logged out
+      //     set({
+      //       user: null,
+      //       token: null,
+      //       isAuthenticated: false,
+      //       isInitializing: false
+      //     });
+      //   }
+      // },
 
       logout: async () => {
         try {
-          await authApi.logoutUser();
+          await AuthService.logout();
         } catch (e) {
           console.error("Logout failed", e);
         } finally {
@@ -78,11 +127,12 @@ const useAuthStore = create(
           });
         }
       },
+      // ... rest of the methods remain similar
 
       register: async (username, email, password) => {
         set({ isLoading: true, error: null });
         try {
-          await authApi.registerUser({ username, email, password });
+          await AuthService.register({ username, email, password });
           set({ isLoading: false });
           return true;
         } catch (error) {
@@ -97,7 +147,7 @@ const useAuthStore = create(
       verifyOtp: async (email, otp) => {
         set({ isLoading: true, error: null });
         try {
-          await authApi.verifyOtp({ email, otp });
+          await AuthService.verifyOtp({ email, otp });
           set({ isLoading: false });
           return true;
         } catch (error) {
@@ -111,7 +161,7 @@ const useAuthStore = create(
 
       resendOtp: async (email) => {
         try {
-          await authApi.resendOtp(email);
+          await AuthService.resendOtp(email);
           return true;
         } catch (error) {
           set({ error: error.response?.data?.error || 'Failed to resend OTP.' });
@@ -122,7 +172,7 @@ const useAuthStore = create(
       forgotPassword: async (email) => {
         set({ isLoading: true, error: null });
         try {
-          await authApi.forgotPassword(email);
+          await AuthService.forgotPassword(email);
           set({ isLoading: false });
           return true;
         } catch (error) {
@@ -137,7 +187,7 @@ const useAuthStore = create(
       resetPassword: async (email, otp, newPassword) => {
         set({ isLoading: true, error: null });
         try {
-          await authApi.resetPassword(email, otp, newPassword);
+          await AuthService.resetPassword({ email, otp, newPassword });
           set({ isLoading: false });
           return true;
         } catch (error) {
@@ -154,11 +204,17 @@ const useAuthStore = create(
     {
       name: 'appnest-auth-storage',
       partialize: (state) => ({
+        // We only persist non-sensitive user data if needed for UI shell
+        // Tokens and isAuthenticated MUST NOT be persisted
         user: state.user,
-        token: state.token,
-        isAuthenticated: state.isAuthenticated,
         role: state.role
       }),
+      onRehydrateStorage: () => (state) => {
+        // After hydration, trigger the boot flow (refresh -> me)
+        if (state) {
+          state.checkAuth();
+        }
+      }
     }
   )
 );
@@ -171,20 +227,3 @@ const useAuthStore = create(
  * - Subscriptions: useAuthStore.subscribe()
  */
 export { useAuthStore };
-
-// ✅ Trigger auth hydration on app startup (BEFORE React renders)
-// Key: Only verify if we don't already have a logged-in user from localStorage
-if (typeof window !== 'undefined') {
-  // Brief delay to ensure persist middleware has restored from localStorage
-  setTimeout(() => {
-    const currentState = useAuthStore.getState();
-    // If we have a user and token, we're already logged in (restored from storage)
-    // Just verify it's still valid with backend
-    if (currentState.user && currentState.token) {
-      console.log('[AuthStore] User restored from localStorage, verifying with backend...');
-      useAuthStore.getState().checkAuth?.();
-    } else {
-      console.log('[AuthStore] No user in localStorage, skipping verification');
-    }
-  }, 0);
-}

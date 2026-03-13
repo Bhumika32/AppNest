@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Edit2, Trash2, Power, LayoutGrid, List, AlertCircle, CheckCircle, X } from 'lucide-react';
-import axios from '../../api/axios';
+import api from '../../api/apiClient';
 
 const ModuleManager = () => {
     const [modules, setModules] = useState([]);
@@ -17,7 +17,7 @@ const ModuleManager = () => {
 
     const fetchModules = async () => {
         try {
-            const { data } = await axios.get('/api/modules');
+            const { data } = await api.get('/modules');
             setModules(data);
         } catch (err) {
             console.error('Fetch failed', err);
@@ -32,9 +32,9 @@ const ModuleManager = () => {
         e.preventDefault();
         try {
             if (editingModule) {
-                await axios.patch(`/api/admin/modules/${editingModule.id}`, formData);
+                await api.patch(`/admin/modules/${editingModule.id}`, formData);
             } else {
-                await axios.post('/api/admin/modules', formData);
+                await api.post('/admin/modules', formData);
             }
             setShowModal(false);
             setEditingModule(null);
@@ -46,7 +46,7 @@ const ModuleManager = () => {
 
     const toggleStatus = async (module) => {
         try {
-            await axios.patch(`/api/admin/modules/${module.id}`, { is_active: !module.is_active });
+            await api.patch(`/admin/modules/${module.id}`, { is_active: !module.is_active });
             fetchModules();
         } catch (err) {
             console.error('Toggle failed', err);
@@ -56,7 +56,7 @@ const ModuleManager = () => {
     const deleteModule = async (id) => {
         if (!window.confirm('Erase this module from the neural core?')) return;
         try {
-            await axios.delete(`/api/admin/modules/${id}`);
+            await api.delete(`/admin/modules/${id}`);
             fetchModules();
         } catch (err) {
             console.error('Delete failed', err);

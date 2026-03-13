@@ -7,11 +7,11 @@ import ProtectedRoute from '../components/ProtectedRoute.jsx';
 import AdminRoute from '../components/AdminRoute.jsx';
 
 // ── Public Pages ─────────────────────────────────────────────
-import WelcomePage from '../pages/AppNestWelcome.jsx';
-import LoginPage from '../pages/Login.jsx';
-import SignupPage from '../pages/Signup.jsx';
-import ForgotPassword from '../pages/ForgotPassword.jsx';
-import ResetPassword from '../pages/ResetPassword.jsx';
+import WelcomePage from './pages/AppNestWelcome.jsx';
+import LoginPage from './pages/Login.jsx';
+import SignupPage from './pages/Signup.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 
 // ── User Realms ──────────────────────────────────────────────
 import HomePortal from '../realms/home/HomePortal.jsx';
@@ -23,7 +23,7 @@ import Achievements from '../realms/profile/Achievements.jsx';
 import Leaderboard from '../realms/social/Leaderboard.jsx';
 import SocialHub from '../realms/social/SocialHub.jsx';
 import ModuleLoader from '../components/Module/ModuleLoader.jsx';
-import Settings from '../pages/Settings.jsx';
+import Settings from './pages/Settings.jsx';
 
 // ── Admin Realms ─────────────────────────────────────────────
 import AdminOverview from '../admin/overview/AdminOverview.jsx';
@@ -35,17 +35,21 @@ import PlatformAnalytics from '../admin/analytics/PlatformAnalytics.jsx';
 import SystemSettings from '../admin/settings/SystemSettings.jsx';
 import ModuleManager from '../admin/modules/ModuleManager.jsx';
 
+import { useAuthStore } from '../store/authStore';
+
 // Loading spinner used as Suspense fallback
 const RealmLoading = () => (
-    <div className="flex items-center justify-center h-full">
+    <div className="flex items-center justify-center h-screen bg-deep-black">
         <div className="w-12 h-12 border-4 border-neon-blue border-t-transparent rounded-full animate-spin" />
     </div>
 );
 
 const AppRouter = () => {
-    // Auth hydration is now handled in authStore.js on app startup
-    // This ensures token is restored before routes are evaluated
+    const isInitializing = useAuthStore(state => state.isInitializing);
 
+    if (isInitializing) {
+        return <RealmLoading />;
+    }
     return (
         <Routes>
             {/* ── Public Routes ──────────────────────────────── */}

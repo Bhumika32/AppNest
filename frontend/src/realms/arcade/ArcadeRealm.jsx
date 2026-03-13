@@ -56,12 +56,12 @@ const GameCard = ({ name, description, category, difficulty, rating = "4.8", ver
 };
 
 const ArcadeRealm = () => {
-    const { modules, fetchModules, loading } = useModuleStore();
+    const modules = useModuleStore(state => state.modules);
+    const fetchModules = useModuleStore(state => state.fetchModules);
+    const loading = useModuleStore(state => state.loading);
     const games = modules.filter(m => m.type === 'game');
 
-    useEffect(() => {
-        if (modules.length === 0) fetchModules();
-    }, [modules.length, fetchModules]);
+
 
     if (loading) return (
         <div className="h-[60vh] flex flex-col items-center justify-center gap-4">

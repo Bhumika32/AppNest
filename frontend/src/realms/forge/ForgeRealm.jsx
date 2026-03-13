@@ -45,13 +45,13 @@ const ToolCard = ({ name, description, icon, category, version = "1.0", xp_rewar
 };
 
 const ForgeRealm = () => {
-    const { modules, fetchModules, loading } = useModuleStore();
+    const modules = useModuleStore(state => state.modules);
+    const fetchModules = useModuleStore(state => state.fetchModules);
+    const loading = useModuleStore(state => state.loading);
     const [searchQuery, setSearchQuery] = useState('');
     const tools = modules.filter(m => m.type === 'tool');
 
-    useEffect(() => {
-        if (modules.length === 0) fetchModules();
-    }, [modules.length, fetchModules]);
+
 
     const filteredTools = tools.filter(t =>
         t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

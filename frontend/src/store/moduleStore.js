@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import axios from '../api/axios';
+import { ModuleService } from '../api/api';
 
 export const useModuleStore = create((set, get) => ({
     modules: [],
@@ -9,8 +9,7 @@ export const useModuleStore = create((set, get) => ({
     fetchModules: async (type = null) => {
         set({ loading: true, error: null });
         try {
-            const url = type ? `/modules?type=${type}` : '/modules';
-            const { data } = await axios.get(url);
+            const { data } = await ModuleService.getAll(type);
             set({ modules: data, loading: false });
         } catch (err) {
             set({ error: err.response?.data?.error || 'Failed to sync modules', loading: false });
@@ -23,7 +22,7 @@ export const useModuleStore = create((set, get) => ({
 
     trackLaunch: async (moduleId) => {
         try {
-            const { data } = await axios.post('/modules/analytics/start', { module_id: moduleId });
+            const { data } = await ModuleService.trackStart(moduleId);
             return data.entry_id;
         } catch (err) {
             console.error('Analytics failed to initiate:', err);
@@ -33,7 +32,7 @@ export const useModuleStore = create((set, get) => ({
 
     trackEnd: async (entryId, duration) => {
         try {
-            await axios.post('/modules/analytics/end', { entry_id: entryId, duration });
+            await ModuleService.trackEnd(entryId, duration);
         } catch (err) {
             console.error('Analytics failed to finalize:', err);
         }

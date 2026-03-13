@@ -18,6 +18,8 @@ class Module(db.Model):
     category = db.Column(db.String(50))
     difficulty = db.Column(db.String(50))
     is_active = db.Column(db.Boolean, default=True)
+    capabilities = db.Column(db.JSON, nullable=True)
+    xp_reward_base = db.Column(db.Integer, default=10)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -33,6 +35,8 @@ class Module(db.Model):
             "category": self.category,
             "difficulty": self.difficulty,
             "is_active": self.is_active,
+            "capabilities": self.capabilities,
+            "xp_reward_base": self.xp_reward_base,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 

@@ -1,28 +1,32 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import Sidebar from '../layout/Sidebar/Sidebar.jsx';
-import Header from '../layout/Header/Header.jsx';
-import Footer from '../layout/Footer/Footer.jsx';
+import Sidebar from './layout/Sidebar/Sidebar.jsx';
+import Header from './layout/Header/Header.jsx';
+import Footer from './layout/Footer/Footer.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUserStore } from '../store/userStore.js';
 import { useAdminAnalyticsStore } from '../store/adminAnalyticsStore.js';
 import { useAuthStore } from '../store/authStore.js';
 import { useModuleStore } from '../store/moduleStore.js';
-import { useStreakStore } from '../store/streakStore.js';
+import { useUIStore } from '../store/uiStore.js';
 import { useNotificationStore } from '../store/notificationStore.js';
 import ErrorBoundary from '../components/ErrorBoundary.jsx';
 import ToastManager from '../components/ToastManager.jsx';
+import SystemOverlayManager from '../components/SystemOverlayManager.jsx';
 
 // ---------------------------------------------------------
 // AppShell Content and Logic
 // ---------------------------------------------------------
 const AppShellContent = () => {
-    const { fetchDashboard, level } = useUserStore();
-    const { fetchStats } = useAdminAnalyticsStore();
-    const { fetchModules } = useModuleStore();
-    const { role } = useAuthStore();
-    const { checkAndUpdateStreak } = useStreakStore();
-    const { notify } = useNotificationStore();
+    const fetchDashboard = useUserStore(state => state.fetchDashboard);
+    const level = useUserStore(state => state.level);
+    const fetchStats = useAdminAnalyticsStore(state => state.fetchStats);
+    const fetchModules = useModuleStore(state => state.fetchModules);
+    const role = useAuthStore(state => state.role);
+    const checkAndUpdateStreak = useUIStore(state => state.checkAndUpdateStreak);
+    const notify = useNotificationStore(state => state.notify);
+    const initSocket = useNotificationStore(state => state.initSocket);
+    const disconnectSocket = useNotificationStore(state => state.disconnectSocket);
 
     // Track previous level to detect level-ups
     const prevLevelRef = React.useRef(level);
@@ -75,19 +79,16 @@ const AppShellContent = () => {
     }, [level, notify]);
 
     // ---------------------------------------------------------
-    // Real-Time Polling Logic (30s)
+    // Initial System Sync (Mount Only)
     // ---------------------------------------------------------
     React.useEffect(() => {
-        const syncSystem = () => {
-            fetchDashboard();
-            fetchModules();
-            if (role === 'admin') fetchStats();
-        };
+        fetchDashboard();
+        fetchModules();
+        initSocket();
+        if (role === 'admin') fetchStats();
 
-        syncSystem();
-        const interval = setInterval(syncSystem, 30000);
-        return () => clearInterval(interval);
-    }, [fetchDashboard, fetchStats, fetchModules, role]);
+        return () => disconnectSocket();
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <div className="flex h-screen w-screen bg-dark-bg text-white overflow-hidden font-sans">
@@ -106,18 +107,20 @@ const AppShellContent = () => {
 
                 {/* Workspace Area */}
                 <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 relative">
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={window.location.pathname}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.3 }}
-                            className="min-h-full"
-                        >
-                            <Outlet />
-                        </motion.div>
-                    </AnimatePresence>
+                    <ErrorBoundary>
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={window.location.pathname}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.3 }}
+                                className="min-h-full"
+                            >
+                                <Outlet />
+                            </motion.div>
+                        </AnimatePresence>
+                    </ErrorBoundary>
                 </main>
 
                 <Footer />
@@ -128,14 +131,15 @@ const AppShellContent = () => {
 
             {/* 🔔 Toast Notification Layer */}
             <ToastManager />
+
+            {/* 🎭 Feedback Overlay Layer (Roasts & Tips) */}
+            <SystemOverlayManager />
         </div>
     );
 };
 
 const AppShell = () => (
-    <ErrorBoundary>
-        <AppShellContent />
-    </ErrorBoundary>
+    <AppShellContent />
 );
 
 export default AppShell;

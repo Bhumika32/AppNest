@@ -117,13 +117,13 @@ const AdminOverview = () => {
                             ))}
                         </div>
                     </div>
-                    <div className="h-[300px] w-full">
+                    <div className="h-[300px] w-full min-h-[300px]">
                         {isLoading ? (
                             <div className="h-full w-full bg-white/5 rounded-2xl animate-pulse flex items-center justify-center text-[10px] font-black uppercase tracking-[0.5em] text-gray-600">
                                 Calibrating Visuals...
                             </div>
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height={300}>
                                 <AreaChart data={stats.platformGrowth}>
                                     <defs>
                                         <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">

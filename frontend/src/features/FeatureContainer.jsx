@@ -2,18 +2,13 @@ import React, { Suspense, lazy } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
+import { getModuleComponent } from '../registry/ModuleRegistry';
+
 const FeatureContainer = ({ type }) => {
     const { featureName } = useParams();
 
-    // Dynamically import the feature component
-    // Assuming structure: src/features/tools/<name>/ToolPage.jsx or src/features/games/<name>/Game.jsx
-    const FeatureComponent = lazy(() => {
-        if (type === 'tool') {
-            return import(`../../features/tools/${featureName}/ToolPage.jsx`);
-        } else {
-            return import(`../../features/games/${featureName}/Game.jsx`);
-        }
-    });
+    // The component is now retrieved from the centralized registry
+    const FeatureComponent = getModuleComponent(featureName);
 
     if (!featureName) return <Navigate to="/dashboard" />;
 

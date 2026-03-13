@@ -18,7 +18,7 @@ class ErrorBoundary extends React.Component {
     render() {
         if (this.state.hasError) {
             return this.props.fallback || (
-                <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0c] text-center p-8">
+                <div className="flex flex-col items-center justify-center h-full min-h-[400px] bg-dark-surface/20 border-2 border-dashed border-red-500/20 rounded-[2rem] text-center p-8 backdrop-blur-sm">
                     <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mb-6 border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
                         <Zap size={48} className="text-red-500" />
                     </div>
@@ -31,7 +31,14 @@ class ErrorBoundary extends React.Component {
                         <p className="text-xs text-gray-400 break-all">{this.state.error?.message}</p>
                     </div>
                     <button
-                        onClick={() => window.location.reload()}
+                        onClick={() => {
+                            if (this.props.onReset) {
+                                this.props.onReset();
+                                this.setState({ hasError: false, error: null });
+                            } else {
+                                window.location.reload();
+                            }
+                        }}
                         className="px-8 py-3 bg-red-500 text-white font-black rounded-xl hover:bg-red-600 transition-all uppercase tracking-tighter shadow-lg shadow-red-500/20"
                     >
                         Hard Reset Ecosystem

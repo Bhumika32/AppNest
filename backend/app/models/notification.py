@@ -41,20 +41,25 @@ class Notification(db.Model):
     user = db.relationship('User', backref=db.backref('notifications', cascade='all, delete-orphan'))
 
     def to_dict(self):
-        """Convert notification to dictionary."""
+        """Convert notification to frontend-safe dictionary."""
+
         return {
-            'id': self.id,
-            'type': self.type,
-            'title': self.title,
-            'message': self.message,
-            'read': self.read,
-            'read_at': self.read_at.isoformat() if self.read_at else None,
-            'data': self.data,
-            'action_url': self.action_url,
-            'icon': self.icon,
-            'color': self.color,
-            'created_at': self.created_at.isoformat(),
-            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            "id": self.id,
+            "type": self.type,
+            "title": self.title,
+            "message": self.message,
+
+            # frontend contract
+            "seen": self.read,
+            "timestamp": self.created_at.isoformat(),
+
+            "icon": self.icon,
+            "color": self.color,
+            "data": self.data,
+            "action_url": self.action_url,
+
+            "read_at": self.read_at.isoformat() if self.read_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None
         }
 
     def mark_as_read(self):
