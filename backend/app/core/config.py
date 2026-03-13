@@ -20,7 +20,6 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = 3600  # 1 hour
     JWT_REFRESH_TOKEN_EXPIRES = 86400  # 1 day
 
-
     # Database connection string (SQLAlchemy)
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL",
@@ -34,6 +33,8 @@ class Config:
     MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
     MAIL_USERNAME = os.getenv("MAIL_USERNAME")
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
-
-    # Optional: define sender name shown in email
     MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER", os.getenv("MAIL_USERNAME"))
+
+    # Production Performance & AI Config
+    REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")

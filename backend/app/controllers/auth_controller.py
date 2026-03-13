@@ -2,8 +2,8 @@ import traceback
 from flask import request, jsonify, make_response
 from flask_jwt_extended import get_jwt_identity, jwt_required, get_jwt
 
-from app.services.auth_service import AuthService
-from app.services.otp_service import OTPService
+from app.domain.auth_service import AuthService
+from app.domain.otp_service import OTPService
 from app.core.jwt_manager import JWTManager
 from app.models.user import User
 

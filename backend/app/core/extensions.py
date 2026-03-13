@@ -23,5 +23,10 @@ migrate = Migrate()
 # Email (SMTP) integration for OTP / password reset
 mail = Mail()
 from flask_jwt_extended import JWTManager
+from flask_socketio import SocketIO
 
 jwt = JWTManager()
+
+# WebSocket (Real-time notifications)
+# cors_allowed_origins="*" for development, should be restricted in production
+socketio = SocketIO(cors_allowed_origins="*")
