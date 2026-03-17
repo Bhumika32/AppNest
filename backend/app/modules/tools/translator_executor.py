@@ -1,5 +1,7 @@
 from app.platform.module_executor import ModuleExecutor
 from app.platform.module_result import ModuleResult
+import logging
+logger = logging.getLogger(__name__)
 
 class TranslatorExecutor(ModuleExecutor):
     """
@@ -10,6 +12,7 @@ class TranslatorExecutor(ModuleExecutor):
     module_key = "translator"
 
     def execute(self, payload, user) -> ModuleResult:
+        logger.info(f"Executing Translator tool for user: {user.id}")
         metadata = payload.get("metadata", {})
 
         text = metadata.get("text")
@@ -24,9 +27,8 @@ class TranslatorExecutor(ModuleExecutor):
                 message="text and target language are required"
             )
 
-        # Temporary demo translation logic
-        # (later you can replace with real API)
-        translated_text = f"[{target}] {text}"
+        # Temporary demo translation logic (Reverse string for decrypter simulation)
+        translated_text = str(text)[::-1]
 
         return ModuleResult(
             completed=True,

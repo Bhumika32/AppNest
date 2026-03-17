@@ -1,37 +1,51 @@
+"""app.core.jwt_manager
+A custom JWT management class using PyJWT, providing token issuance and validation."""
+import jwt
+# import os
 from datetime import datetime, timedelta
-from flask import current_app
-from flask_jwt_extended import create_access_token, decode_token
+from app.core.config import settings
+
+import jwt
+from datetime import datetime, timedelta
+from app.core.config import settings
+
 
 class JWTManager:
-    """
-    Custom JWT management logic for short-lived access tokens.
-    """
-    
-    @staticmethod
-    def issue_access_token(user_id, role, session_id):
-        """
-        Create a short-lived access token containing role and session info.
-        """
-        additional_claims = {
-            "role": (role or "user").lower(),  # Normalize to lowercase for consistency
-            "session_id": session_id
-        }
-        
-        # Access tokens should be very short-lived (10-15 mins)
-        expires_delta = timedelta(minutes=15)
-        
-        return create_access_token(
-            identity=str(user_id),
-            additional_claims=additional_claims,
-            expires_delta=expires_delta
-        )
+    """Custom JWT management using PyJWT."""
+
+    ALGORITHM = "HS256"
 
     @staticmethod
-    def validate_token(token):
+    def issue_access_token(user_id, role, session_id):
+        expire = datetime.utcnow() + timedelta(
+            seconds=settings.JWT_ACCESS_TOKEN_EXPIRES
+        )
+
+        payload = {
+            "sub": str(user_id),
+            "role": (role or "user").lower(),
+            "session_id": session_id,
+            "exp": expire,
+            "iat": datetime.utcnow()
+        }
+
+        return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=JWTManager.ALGORITHM)
+
+    @staticmethod
+    def validate_token(token: str):
         """
-        Decode and validate a token manually if needed.
+        Validate and decode JWT token
         """
         try:
-            return decode_token(token)
-        except Exception:
+            payload = jwt.decode(
+                token,
+                settings.JWT_SECRET_KEY,
+                algorithms=[JWTManager.ALGORITHM]
+            )
+            return payload
+
+        except jwt.ExpiredSignatureError:
+            return None
+
+        except jwt.InvalidTokenError:
             return None

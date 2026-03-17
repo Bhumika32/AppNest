@@ -110,15 +110,19 @@ class BreakBreakerService:
 
 from app.platform.module_result import ModuleResult
 
+import logging
+logger = logging.getLogger(__name__)
+
 class BrickBreakerExecutor(ModuleExecutor):
     module_key = "brick-breaker"
 
     def execute(self, payload: dict, user) -> ModuleResult:
+        logger.info(f"Executing Brick Breaker for user: {user.id}")
         score = int(payload.get("score", 0))
         win = bool(payload.get("win", False))
         status = payload.get("status", "completed")
         
-        is_completed = status in ["won", "game_over"] or win
+        is_completed = status in ["won", "game_over"] or win or payload.get("completed", False)
         
         return ModuleResult(
             completed=is_completed,

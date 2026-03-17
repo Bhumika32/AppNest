@@ -333,10 +333,14 @@ class AgeService:
 
 from app.platform.module_result import ModuleResult
 
+import logging
+logger = logging.getLogger(__name__)
+
 class AgeExecutor(ModuleExecutor):
     module_key = "age-calculator"
 
     def execute(self, payload: dict, user) -> ModuleResult:
+        logger.info(f"Executing Age Calculator for user: {user.id}")
         metadata = payload.get("metadata", {})
         dob_str = payload.get("dob") or metadata.get("dob")
         name = payload.get("name") or metadata.get("name") or user.username

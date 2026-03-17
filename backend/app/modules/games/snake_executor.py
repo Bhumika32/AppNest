@@ -121,10 +121,14 @@ class SnakeService:
 
 from app.platform.module_result import ModuleResult
 
+import logging
+logger = logging.getLogger(__name__)
+
 class SnakeExecutor(ModuleExecutor):
     module_key = "hungry-snake"
 
     def execute(self, payload: dict, user) -> ModuleResult:
+        logger.info(f"Executing Hungry Snake game for user: {user.id}")
         score = int(payload.get("score", 0))
         win = bool(payload.get("win", False))
         status = payload.get("status", "completed")

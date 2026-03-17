@@ -1,55 +1,146 @@
 """
 app/utils/auth_decorators.py
-
-Custom authentication decorators for AppNest.
+FastAPI Auth Dependencies (NO decorators, pure DI)
 """
 
-from functools import wraps
-from flask import jsonify
-from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
+
+from app.core.jwt_manager import JWTManager
+from app.core.database import get_db
 from app.models import User
-from app.core.extensions import db
+
+security = HTTPBearer()
 
 
-def token_required(f):
-    """Decorator to verify JWT token is present and valid."""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        try:
-            verify_jwt_in_request()
-        except Exception as e:
-            return jsonify({"error": "Token is missing or invalid"}), 401
-        return f(*args, **kwargs)
-    return decorated
+# -----------------------------
+# TOKEN VALIDATION
+# -----------------------------
+def get_token_payload(
+    auth: HTTPAuthorizationCredentials = Depends(security)
+):
+    payload = JWTManager.validate_token(auth.credentials)
+
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+
+    return payload
 
 
-def user_required(f):
-    """Decorator to verify JWT token and get authenticated user."""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        try:
-            verify_jwt_in_request()
-            user_id = int(get_jwt_identity())  # Convert string ID back to int
-            user = db.session.get(User, user_id)
-            if not user:
-                return jsonify({"error": "User not found"}), 404
-        except Exception as e:
-            return jsonify({"error": "Authentication failed"}), 401
-        return f(*args, user=user, **kwargs)
-    return decorated
+# -----------------------------
+# CURRENT USER
+# -----------------------------
+def get_current_user(
+    payload: dict = Depends(get_token_payload),
+    db: Session = Depends(get_db)
+) -> User:
+
+    user_id = payload.get("sub")
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+        )
+
+    user = db.get(User, int(user_id))
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    return user
 
 
-def admin_required(f):
-    """Decorator to verify user has admin role."""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        try:
-            verify_jwt_in_request()
-            user_id = int(get_jwt_identity())  # Convert string ID back to int
-            user = db.session.get(User, user_id)
-            if not user or (user.role and user.role.name.lower()) != 'admin':
-                return jsonify({"error": "Admin access required"}), 403
-        except Exception as e:
-            return jsonify({"error": "Authentication failed"}), 401
-        return f(*args, user=user, **kwargs)
-    return decorated
+# -----------------------------
+# ROLE CHECK (GENERIC)
+# -----------------------------
+def require_role(required_role: str):
+
+    def role_checker(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+        if not user.role or user.role.name.lower() != required_role.lower():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"{required_role} access required",
+            )
+
+        return user
+
+    return role_checker
+
+
+# -----------------------------
+# PREDEFINED ROLES
+# -----------------------------
+def get_admin_user(user: User = Depends(require_role("admin"))):
+    return user
+
+
+def get_user_user(user: User = Depends(require_role("user"))):
+    return user
+
+# """
+# app/utils/auth_decorators.py
+
+# Authentication and Authorization dependencies for FastAPI.
+# """
+
+# from fastapi import Depends, HTTPException, status
+# from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+# from app.core.jwt_manager import JWTManager
+# from app.models import User
+# from app.core.database import get_db
+# from sqlalchemy.orm import Session
+
+# security = HTTPBearer()
+
+# async def get_current_user_claims(auth: HTTPAuthorizationCredentials = Depends(security)):
+#     """FastAPI dependency to verify JWT and return payload."""
+#     payload = JWTManager.validate_token(auth.credentials)
+#     if not payload:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Invalid or expired token",
+#         )
+#     return payload
+
+
+# async def get_current_user(
+#     claims: dict = Depends(get_current_user_claims),
+#     db: Session = Depends(get_db)
+# ) -> User:
+#     """Return the authenticated user."""
+
+#     user_id = claims.get("sub")
+
+#     if not user_id:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="User ID not found in token",
+#         )
+
+#     user = db.get(User, int(user_id))
+
+#     if not user:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="User not found",
+#         )
+
+#     return user
+
+# async def get_admin_user(user: User = Depends(get_current_user)) -> User:
+#     """FastAPI dependency to verify user has admin role."""
+#     if not user.role or user.role.name.lower() != 'admin':
+#         raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail="Admin access required",
+#         )
+#     return user
+

@@ -196,16 +196,20 @@ class TicTacToeService:
 
 from app.platform.module_result import ModuleResult
 
+import logging
+logger = logging.getLogger(__name__)
+
 class TicTacToeExecutor(ModuleExecutor):
     module_key = "tic-tac-toe"
 
     def execute(self, payload: dict, user) -> ModuleResult:
+        logger.info(f"Executing TicTacToe for user: {user.id}")
         score = int(payload.get("score", 0))
         win = bool(payload.get("win", False))
         status = payload.get("status", "completed")
         
-        # In TicTacToe, player_win, ai_win, or draw means game is over
-        is_completed = status in ["player_win", "ai_win", "draw"] or win
+        # Consider game completed if status is win, game_over or explicitly marked as win
+        is_completed = status in ["player_win", "ai_win", "draw"] or win or payload.get("completed", False)
         
         return ModuleResult(
             completed=is_completed,

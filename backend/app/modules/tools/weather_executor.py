@@ -72,10 +72,14 @@ class WeatherService:
         except Exception as e:
             raise ValueError(f"Weather API error: {str(e)}")
 
+import logging
+logger = logging.getLogger(__name__)
+
 class WeatherExecutor(ModuleExecutor):
     module_key = "weather"
 
     def execute(self, payload: dict, user) -> ModuleResult:
+        logger.info(f"Executing Weather tool for user: {user.id}")
         metadata = payload.get("metadata", {})
         city = payload.get("city") or metadata.get("city")
 

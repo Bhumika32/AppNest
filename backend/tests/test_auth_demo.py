@@ -6,15 +6,16 @@ sys.path.insert(0, 'F:\\AppNest-main\\backend')
 
 # Create verified user directly for testing
 from app import create_app
-from app.core.extensions import db
+from sqlalchemy.orm import Session
 from app.models.user import User
 
 app = create_app()
 
 with app.app_context():
+    db: Session = app.extensions['db'].session
     # Clean up test users first
     User.query.filter(User.email == "demouser@test.com").delete()
-    db.session.commit()
+    db.commit()
     
     # Create verified test user
     user = User(
@@ -23,8 +24,8 @@ with app.app_context():
         is_verified=True
     )
     user.set_password("DemoPass123!")
-    db.session.add(user)
-    db.session.commit()
+    db.add(user)
+    db.commit()
     print("✓ Created verified test user: demouser@test.com")
 
 BASE_URL = "http://127.0.0.1:5000"

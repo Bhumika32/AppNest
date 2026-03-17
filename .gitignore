@@ -2,7 +2,18 @@
 # ENV FILES
 # ======================
 .env
+# ======================
+# Archives / Dumps (CRITICAL)
+# ======================
+*.zip
+*.tar
+*.gz
+*.rar
 
+# Project backups (your current mess)
+backend.zip
+backend_old.zip
+frontend.zip
 # ======================
 # Python Backend
 # ======================

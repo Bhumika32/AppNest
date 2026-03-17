@@ -49,12 +49,12 @@ def seed_modules():
             existing = Module.query.filter_by(slug=m_data['slug']).first()
             if not existing:
                 mod = Module(**m_data)
-                db.session.add(mod)
+                db.add(mod)
                 print(f"Adding module: {m_data['name']}")
             else:
                 print(f"Module {m_data['name']} already exists. Skipping.")
 
-        db.session.commit()
+        db.commit()
         print("Neural Module seeding complete.")
 
 if __name__ == "__main__":

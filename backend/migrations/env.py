@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/..'))
 
 # Import Flask and extensions
 from flask import Flask
-from app.core.config import Config
+from app.core.config import settings
 from app.core.extensions import db, migrate
 
 # Import models to ensure they're loaded for migration detection
@@ -30,7 +30,7 @@ from app.models import *  # noqa: F401,F403
 
 # Create minimal Flask app for migration
 app = Flask(__name__)
-app.config.from_object(Config)
+app.config.from_object(settings)
 db.init_app(app)
 migrate.init_app(app, db)
 

@@ -122,10 +122,14 @@ class FlappyBirdService:
 
 from app.platform.module_result import ModuleResult
 
+import logging
+logger = logging.getLogger(__name__)
+
 class FlappyBirdExecutor(ModuleExecutor):
     module_key = "flappy-bird"
 
     def execute(self, payload: dict, user) -> ModuleResult:
+        logger.info(f"Executing Flappy Bird for user: {user.id}")
         score = int(payload.get("score", 0))
         win = bool(payload.get("win", False))
         status = payload.get("status", "completed")
