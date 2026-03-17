@@ -1,4 +1,4 @@
-from app.core.extensions import db
+from sqlalchemy.orm import Session
 from app.models.quest import Quest, UserQuest
 from app.domain.progression_service import ProgressionService
 from datetime import datetime
@@ -10,19 +10,19 @@ class QuestService:
     """
 
     @staticmethod
-    def get_active_quests(user_id: int) -> List[UserQuest]:
+    def get_active_quests(db: Session, user_id: int) -> List[UserQuest]:
         """
         Fetches all pending quests for a user.
         """
-        return UserQuest.query.filter_by(user_id=user_id, status='PENDING').all()
+        return db.query(UserQuest).filter_by(user_id=user_id, status='PENDING').all()
 
     @staticmethod
-    def process_module_completion(user_id: int, module_key: str, score: int) -> List[UserQuest]:
+    def process_module_completion(db: Session, user_id: int, module_key: str, score: int) -> List[UserQuest]:
         """
         Checks all pending quests for the user and updates progress.
         Fulfills quests that hit the target score.
         """
-        pending_quests = QuestService.get_active_quests(user_id)
+        pending_quests = QuestService.get_active_quests(db,  user_id)
         completed_this_turn = []
 
         for user_quest in pending_quests:
@@ -30,13 +30,13 @@ class QuestService:
             if quest.module_key == module_key or quest.module_key is None:
                 # Update progress if score beats target or accumulates (assuming score check for now)
                 if score >= quest.target_score:
-                    QuestService._fulfill_quest(user_id, user_quest)
+                    QuestService._fulfill_quest(db, user_id, user_quest)
                     completed_this_turn.append(user_quest)
         
         return completed_this_turn
 
     @staticmethod
-    def _fulfill_quest(user_id: int, user_quest: UserQuest):
+    def _fulfill_quest(db: Session, user_id: int, user_quest: UserQuest):
         """
         Marks quest as completed and awards XP.
         """
@@ -62,18 +62,18 @@ class QuestService:
             "xp_reward": user_quest.quest.xp_reward
         })
         
-        db.session.flush()
+        db.flush()
 
     @staticmethod
-    def assign_quest(user_id: int, quest_id: int) -> UserQuest:
+    def assign_quest(db: Session, user_id: int, quest_id: int) -> UserQuest:
         """
         Manually assign a quest to a user.
         """
-        existing = UserQuest.query.filter_by(user_id=user_id, quest_id=quest_id).first()
+        existing = db.query(UserQuest).filter_by(user_id=user_id, quest_id=quest_id).first()
         if existing:
             return existing
             
         new_uq = UserQuest(user_id=user_id, quest_id=quest_id)
-        db.session.add(new_uq)
-        db.session.flush()
+        db.add(new_uq)
+        db.flush()
         return new_uq

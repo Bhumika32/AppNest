@@ -1,144 +1,346 @@
-import random
-from datetime import datetime, timedelta, timezone
+"""
+app/domain/otp_service.py
 
-from flask_mail import Message
-from app.core.extensions import db, mail
+Service responsible for:
+
+* Generating OTP codes
+* Storing hashed OTP tokens in the database
+* Enforcing OTP security limits
+* Verifying submitted OTP codes
+* Sending OTP emails (mock implementation)
+
+Design principles:
+
+* Stateless service methods
+* Database session injected from route/service layer
+* Secure OTP storage using hashing
+  """
+
+import random
+from datetime import datetime, timedelta
+
+from sqlalchemy.orm import Session
+
 from app.models.otp_token import OTPToken
 from app.models.user import User
 from app.core.security import hash_data, verify_hash
 
 class OTPService:
-    """OTP generation + validation + email sender service using database storage."""
+    """
+    OTP management service.
 
-    OTP_LENGTH = 6
-    OTP_EXPIRY_MINUTES = 10
-    OTP_RESEND_COOLDOWN_SECONDS = 60
-    MAX_DAILY_OTPS = 5
-    MAX_FAILED_ATTEMPTS = 3
+    ```
+    Responsibilities:
+    - Generate OTP codes
+    - Persist OTP tokens securely
+    - Enforce security limits (rate limiting, expiry, attempts)
+    - Verify OTP submissions
+    """
 
-    @staticmethod
-    def _utc_now() -> datetime:
-        """Return naive UTC datetime (SQLAlchemy standard)."""
-        return datetime.utcnow()
+OTP_LENGTH = 6
+OTP_EXPIRY_MINUTES = 10
+OTP_RESEND_COOLDOWN_SECONDS = 60
+MAX_DAILY_OTPS = 5
+MAX_FAILED_ATTEMPTS = 3
 
-    @staticmethod
-    def generate_otp(length: int = OTP_LENGTH) -> str:
-        return "".join(str(random.randint(0, 9)) for _ in range(length))
+@staticmethod
+def _utc_now() -> datetime:
+    """
+    Return current UTC time (naive datetime for SQLAlchemy compatibility)
+    """
+    return datetime.utcnow()
 
-    @classmethod
-    def create_and_store_otp(cls, email: str, purpose: str) -> str:
-        """
-        Create OTP, hash it, and store in the database.
-        Invalidates any previous unused OTPs for this user/purpose.
-        """
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            raise ValueError("User not found for OTP generation")
-            
-        # Abuse Protection: Check daily limit
-        today_start = cls._utc_now().replace(hour=0, minute=0, second=0, microsecond=0)
-        daily_count = OTPToken.query.filter(
-            OTPToken.user_id == user.id,
-            OTPToken.purpose == purpose,
-            OTPToken.created_at >= today_start
-        ).count()
-        
-        if daily_count >= cls.MAX_DAILY_OTPS:
-            # We don't raise error to avoid leaking user info easily, but silently refuse
-            # Or raise if we want the controller to handle it
-            raise ValueError(f"Daily limit of {cls.MAX_DAILY_OTPS} OTPs reached. Try again tomorrow.")
+@staticmethod
+def generate_otp(length: int = OTP_LENGTH) -> str:
+    """
+    Generate numeric OTP of specified length.
+    """
+    return "".join(str(random.randint(0, 9)) for _ in range(length))
 
-        # Invalidate previous unused OTPs for this purpose
-        for old_otp in OTPToken.query.filter_by(user_id=user.id, purpose=purpose, used=False).all():
-            old_otp.used = True
+@classmethod
+def create_and_store_otp(
+    cls,
+    db: Session,
+    email: str,
+    purpose: str
+) -> str:
+    """
+    Generate OTP and store it securely in the database.
+    """
 
-        otp = cls.generate_otp()
-        hashed_otp = hash_data(otp)
-        
-        expires_at = cls._utc_now() + timedelta(minutes=cls.OTP_EXPIRY_MINUTES)
+    user = db.query(User).filter_by(email=email).first()
 
-        otp_token = OTPToken(
-            user_id=user.id,
-            otp_hash=hashed_otp,
-            purpose=purpose,
-            expires_at=expires_at
+    if not user:
+        raise ValueError("User not found for OTP generation")
+
+    today_start = cls._utc_now().replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+    daily_count = db.query(OTPToken).filter(
+        OTPToken.user_id == user.id,
+        OTPToken.purpose == purpose,
+        OTPToken.created_at >= today_start
+    ).count()
+
+    if daily_count >= cls.MAX_DAILY_OTPS:
+        raise ValueError(
+            f"Daily OTP limit of {cls.MAX_DAILY_OTPS} reached."
         )
-        
-        db.session.add(otp_token)
-        db.session.commit()
 
-        return otp
+    old_otps = db.query(OTPToken).filter_by(
+        user_id=user.id,
+        purpose=purpose,
+        used=False
+    ).all()
 
-    @classmethod
-    def can_resend(cls, email: str) -> tuple[bool, str]:
-        """
-        Check resend rules: 1 minute cooldown per email.
-        """
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            return False, "User not found."
+    for old_otp in old_otps:
+        old_otp.used = True
 
-        latest_otp = OTPToken.query.filter_by(user_id=user.id).order_by(OTPToken.created_at.desc()).first()
-        
-        if latest_otp:
-            # SQLAlchemy created_at might be naive, ensure comparison is consistent
-            diff_seconds = (cls._utc_now() - latest_otp.created_at).total_seconds()
-            if diff_seconds < cls.OTP_RESEND_COOLDOWN_SECONDS:
-                wait = int(cls.OTP_RESEND_COOLDOWN_SECONDS - diff_seconds)
-                return False, f"Please wait {wait}s before resending OTP."
+    otp = cls.generate_otp()
+    hashed_otp = hash_data(otp)
 
-        return True, "Resend allowed."
+    expires_at = cls._utc_now() + timedelta(
+        minutes=cls.OTP_EXPIRY_MINUTES
+    )
 
-    @classmethod
-    def verify_otp(cls, email: str, submitted_otp: str) -> tuple[bool, str]:
-        """
-        Verify hashed OTP from database.
-        """
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            return False, "User not found."
+    otp_token = OTPToken(
+        user_id=user.id,
+        otp_hash=hashed_otp,
+        purpose=purpose,
+        expires_at=expires_at
+    )
 
-        # Find the latest unused and non-expired OTP for this user
-        otp_token = OTPToken.query.filter_by(
-            user_id=user.id, 
-            used=False
-        ).order_by(OTPToken.created_at.desc()).first()
+    db.add(otp_token)
+    db.commit()
 
-        if not otp_token:
-            return False, "No active OTP found. Please request a new one."
+    return otp
 
-        if otp_token.is_expired():
-            otp_token.used = True
-            db.session.commit()
-            return False, "OTP has expired. Please request a new one."
-            
-        # Implementing basic abuse protection for failed attempts
-        if getattr(otp_token, 'failed_attempts', 0) >= cls.MAX_FAILED_ATTEMPTS:
-             otp_token.used = True
-             db.session.commit()
-             return False, "Too many failed attempts. OTP invalidated. Request a new one."
+@classmethod
+def can_resend(cls, db: Session, email: str) -> tuple[bool, str]:
+    """
+    Check whether OTP resend is allowed based on cooldown rule.
+    """
 
-        if not verify_hash(submitted_otp, otp_token.otp_hash):
-            if hasattr(otp_token, 'failed_attempts'):
-                otp_token.failed_attempts += 1
-                db.session.commit()
-            return False, "Invalid OTP."
+    user = db.query(User).filter_by(email=email).first()
 
-        # Mark as used
+    if not user:
+        return False, "User not found."
+
+    latest_otp = (
+        db.query(OTPToken)
+        .filter_by(user_id=user.id)
+        .order_by(OTPToken.created_at.desc())
+        .first()
+    )
+
+    if latest_otp:
+        diff_seconds = (
+            cls._utc_now() - latest_otp.created_at
+        ).total_seconds()
+
+        if diff_seconds < cls.OTP_RESEND_COOLDOWN_SECONDS:
+            wait = int(cls.OTP_RESEND_COOLDOWN_SECONDS - diff_seconds)
+            return False, f"Please wait {wait}s before resending OTP."
+
+    return True, "Resend allowed."
+
+@classmethod
+def verify_otp(
+    cls,
+    db: Session,
+    email: str,
+    submitted_otp: str
+) -> tuple[bool, str]:
+    """
+    Verify OTP submitted by the user.
+    """
+
+    user = db.query(User).filter_by(email=email).first()
+
+    if not user:
+        return False, "User not found."
+
+    otp_token = (
+        db.query(OTPToken)
+        .filter_by(user_id=user.id, used=False)
+        .order_by(OTPToken.created_at.desc())
+        .first()
+    )
+
+    if not otp_token:
+        return False, "No active OTP found."
+
+    if otp_token.is_expired():
         otp_token.used = True
-        db.session.commit()
+        db.commit()
+        return False, "OTP has expired."
 
-        return True, "OTP verified successfully."
+    if getattr(otp_token, "failed_attempts", 0) >= cls.MAX_FAILED_ATTEMPTS:
+        otp_token.used = True
+        db.commit()
+        return False, "Too many failed attempts. OTP invalidated."
 
-    @staticmethod
-    def send_otp_email(to_email: str, otp: str, purpose: str = "Verification") -> None:
-        msg = Message(
-            subject=f"AppNest OTP - {purpose}",
-            recipients=[to_email],
-            body=f"Your AppNest OTP is: {otp}\n\nThis OTP expires in 10 minutes.\n\nIf you did not request this OTP, ignore this email."
-        )
-        try:
-            mail.send(msg)
-            print(f"✅ [EMAIL SENT] OTP for {to_email}: {otp}")
-        except Exception as e:
-            print(f"⚠️ [EMAIL FAILED] {e} | 🔑 [DEV MODE] OTP for {to_email}: {otp}")
+    if not verify_hash(submitted_otp, otp_token.otp_hash):
+        if hasattr(otp_token, "failed_attempts"):
+            otp_token.failed_attempts += 1
+            db.commit()
+        return False, "Invalid OTP."
+
+    otp_token.used = True
+    db.commit()
+
+    return True, "OTP verified successfully."
+
+@staticmethod
+def send_otp_email(
+    to_email: str,
+    otp: str,
+    purpose: str = "Verification"
+) -> None:
+    """
+    Send OTP email (mock implementation).
+    """
+
+    print(f"[EMAIL SENT] OTP for {to_email}: {otp}")
+
+
+# import random
+# from datetime import datetime, timedelta, timezone
+
+# from app.core.extensions import db
+# from app.models.otp_token import OTPToken
+# from app.models.user import User
+# from app.core.security import hash_data, verify_hash
+# from sqlalchemy.orm import Session
+# from app.models.session import Session as Session
+
+# class OTPService:
+#     """OTP generation + validation + email sender service using database storage."""
+
+#     OTP_LENGTH = 6
+#     OTP_EXPIRY_MINUTES = 10
+#     OTP_RESEND_COOLDOWN_SECONDS = 60
+#     MAX_DAILY_OTPS = 5
+#     MAX_FAILED_ATTEMPTS = 3
+
+#     @staticmethod
+#     def _utc_now() -> datetime:
+#         """Return naive UTC datetime (SQLAlchemy standard)."""
+#         return datetime.utcnow()
+
+#     @staticmethod
+#     def generate_otp(length: int = OTP_LENGTH) -> str:
+#         return "".join(str(random.randint(0, 9)) for _ in range(length))
+
+#     @classmethod
+#     def create_and_store_otp(db: Session,
+#         cls, email: str, purpose: str) -> str:
+#         """
+#         Create OTP, hash it, and store in the database.
+#         Invalidates any previous unused OTPs for this user/purpose.
+#         """
+#         user = db.query(User).filter_by(email=email).first()
+#         if not user:
+#             raise ValueError("User not found for OTP generation")
+            
+#         # Abuse Protection: Check daily limit
+#         today_start = cls._utc_now().replace(hour=0, minute=0, second=0, microsecond=0)
+#         daily_count = db.query(OTPToken).filter(
+#             OTPToken.user_id == user.id,
+#             OTPToken.purpose == purpose,
+#             OTPToken.created_at >= today_start
+#         ).count()
+        
+#         if daily_count >= cls.MAX_DAILY_OTPS:
+#             # We don't raise error to avoid leaking user info easily, but silently refuse
+#             # Or raise if we want the controller to handle it
+#             raise ValueError(f"Daily limit of {cls.MAX_DAILY_OTPS} OTPs reached. Try again tomorrow.")
+
+#         # Invalidate previous unused OTPs for this purpose
+#         for old_otp in db.query(OTPToken).filter_by(user_id=user.id, purpose=purpose, used=False).all():
+#             old_otp.used = True
+
+#         otp = cls.generate_otp()
+#         hashed_otp = hash_data(otp)
+        
+#         expires_at = cls._utc_now() + timedelta(minutes=cls.OTP_EXPIRY_MINUTES)
+
+#         otp_token = OTPToken(
+#             user_id=user.id,
+#             otp_hash=hashed_otp,
+#             purpose=purpose,
+#             expires_at=expires_at
+#         )
+        
+#         db.add(otp_token)
+#         db.commit()
+
+#         return otp
+
+#     @classmethod
+#     def can_resend(cls, db: Session, email: str) -> tuple[bool, str]:
+#         """
+#         Check resend rules: 1 minute cooldown per email.
+#         """
+#         user = db.query(User).filter_by(email=email).first()
+#         if not user:
+#             return False, "User not found."
+
+#         latest_otp = db.query(OTPToken).filter_by(user_id=user.id).order_by(OTPToken.created_at.desc()).first()
+        
+#         if latest_otp:
+#             # SQLAlchemy created_at might be naive, ensure comparison is consistent
+#             diff_seconds = (cls._utc_now() - latest_otp.created_at).total_seconds()
+#             if diff_seconds < cls.OTP_RESEND_COOLDOWN_SECONDS:
+#                 wait = int(cls.OTP_RESEND_COOLDOWN_SECONDS - diff_seconds)
+#                 return False, f"Please wait {wait}s before resending OTP."
+
+#         return True, "Resend allowed."
+
+#     @classmethod
+#     def verify_otp(cls, email: str, submitted_otp: str) -> tuple[bool, str]:
+#         """
+#         Verify hashed OTP from database.
+#         """
+#         user = db.query(User).filter_by(email=email).first()
+#         if not user:
+#             return False, "User not found."
+
+#         # Find the latest unused and non-expired OTP for this user
+#         otp_token = db.query(OTPToken).filter_by(
+#             user_id=user.id, 
+#             used=False
+#         ).order_by(OTPToken.created_at.desc()).first()
+
+#         if not otp_token:
+#             return False, "No active OTP found. Please request a new one."
+
+#         if otp_token.is_expired():
+#             otp_token.used = True
+#             db.session.commit()
+#             return False, "OTP has expired. Please request a new one."
+            
+#         # Implementing basic abuse protection for failed attempts
+#         if getattr(otp_token, 'failed_attempts', 0) >= cls.MAX_FAILED_ATTEMPTS:
+#              otp_token.used = True
+#              db.session.commit()
+#              return False, "Too many failed attempts. OTP invalidated. Request a new one."
+
+#         if not verify_hash(submitted_otp, otp_token.otp_hash):
+#             if hasattr(otp_token, 'failed_attempts'):
+#                 otp_token.failed_attempts += 1
+#                 db.session.commit()
+#             return False, "Invalid OTP."
+
+#         # Mark as used
+#         otp_token.used = True
+#         db.session.commit()
+
+#         return True, "OTP verified successfully."
+
+#     @staticmethod
+#     def send_otp_email(to_email: str, otp: str, purpose: str = "Verification") -> None:
+#         # Generic SMTP logic can be added here.
+#         # For now, we mock it with a print statement to remain framework agnostic.
+#         print(f"✅ [EMAIL SENT] OTP for {to_email}: {otp}")

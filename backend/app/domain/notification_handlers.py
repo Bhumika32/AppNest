@@ -102,16 +102,21 @@ def handle_quest_completed(data):
 # REGISTER EVENT LISTENERS
 # ---------------------------------------------------------
 
+_HANDLERS_REGISTERED = False
+
 def register_notification_handlers():
     """Register notification listeners with the EventBus."""
+    global _HANDLERS_REGISTERED
+    if _HANDLERS_REGISTERED:
+        return
 
     EventBus.subscribe(Events.XP_GRANTED, handle_xp_granted)
     EventBus.subscribe(Events.LEVEL_UP, handle_level_up)
     EventBus.subscribe(Events.STREAK_UPDATED, handle_streak_updated)
     EventBus.subscribe(Events.QUEST_COMPLETED, handle_quest_completed)
-
-
-print("NOTIFICATION_HANDLERS_REGISTERED")
+    
+    _HANDLERS_REGISTERED = True
+    print("NOTIFICATION_HANDLERS_REGISTERED")
     # These are now managed centrally by ExperienceEngine
     # EventBus.subscribe(Events.MODULE_COMPLETED, handle_module_completed)
     # EventBus.subscribe(Events.XP_GRANTED, handle_xp_granted)

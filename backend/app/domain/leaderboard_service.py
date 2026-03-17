@@ -1,5 +1,5 @@
 from typing import Optional
-from app.core.extensions import db
+from sqlalchemy.orm import Session
 from app.models.leaderboard import Leaderboard
 from datetime import datetime
 
@@ -9,41 +9,44 @@ class LeaderboardService:
     """
 
     @staticmethod
-    def update_score(user_id: int, module_key: str, score: int) -> Optional[Leaderboard]:
+    def update_score(
+        db: Session, user_id: int, module_key: str, score: int) -> Optional[Leaderboard]:
         """
         Updates a user's top score for a specific module.
         Recalculates rank (simplified for now).
         """
         # 1. Get existing entry
-        entry = Leaderboard.query.filter_by(user_id=user_id, module_key=module_key).first()
+        entry = db.query(Leaderboard).filter_by(user_id=user_id, module_key=module_key).first()
 
         if not entry:
             entry = Leaderboard(user_id=user_id, module_key=module_key, top_score=score)
-            db.session.add(entry)
+            db.add(entry)
         elif score > entry.top_score:
             entry.top_score = score
             entry.last_updated = datetime.utcnow()
         
-        db.session.flush()
+        db.flush()
         
         # 2. Recalculate ranks for this module (simplified for MVP)
         # In production, this might be a background task or sorted on read
-        LeaderboardService._update_ranks(module_key)
+        LeaderboardService._update_ranks(db, module_key)
         
         return entry
 
     @staticmethod
-    def _update_ranks(module_key: str):
+    def _update_ranks(
+        db: Session, module_key: str):
         """
         Updates the rank column for all users in a specific module.
         """
-        entries = Leaderboard.query.filter_by(module_key=module_key).order_by(Leaderboard.top_score.desc()).all()
+        entries = db.query(Leaderboard).filter_by(module_key=module_key).order_by(Leaderboard.top_score.desc()).all()
         for i, entry in enumerate(entries):
             entry.rank = i + 1
-        db.session.flush()
+        db.flush()
 
     @staticmethod
-    def get_global_rankings(limit: int = 10):
+    def get_global_rankings(
+        db: Session, limit: int = 10):
         """
         Retrieves global top scores across all modules with Redis caching.
         """
@@ -56,7 +59,7 @@ class LeaderboardService:
         if cached_data:
             return cached_data
             
-        results = db.session.query(User.username, UserProgression.total_xp, UserProgression.level) \
+        results = db.query(User.username, UserProgression.total_xp, UserProgression.level) \
             .join(UserProgression, User.id == UserProgression.user_id) \
             .order_by(UserProgression.total_xp.desc()) \
             .limit(limit).all()

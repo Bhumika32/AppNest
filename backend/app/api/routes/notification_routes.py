@@ -1,118 +1,84 @@
-"""
-app/api/notification_routes.py
-
-API Endpoints for user notification management.
-Provides notification retrieval, read status updates, and deletion.
-"""
-
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import List, Optional
 from app.domain.notification_service import NotificationService
+from app.utils.auth_decorators import get_current_user
+from app.models.user import User
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+notification_router = APIRouter()
 
-notification_bp = Blueprint("notifications", __name__, url_prefix="/api/notifications")
-
-
-@notification_bp.route("", methods=["GET"])
-@jwt_required()
-def get_notifications():
+@notification_router.get("")
+async def get_notifications(
+    limit: int = Query(50, ge=1, le=100),
+    unread_only: bool = Query(False),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Get user's notifications.
-    
-    Query params:
-      - limit: Maximum notifications to retrieve (default: 50)
-      - unread_only: If 'true', only return unread notifications
     """
-    try:
-        user_id = int(get_jwt_identity())
-        limit = request.args.get("limit", 50, type=int)
-        unread_only = request.args.get("unread_only", "false").lower() == "true"
-        
-        notifications = NotificationService.get_user_notifications(
-            user_id=user_id,
-            limit=limit,
-            unread_only=unread_only
-        )
-        unread_count = NotificationService.get_unread_count(user_id)
-        
-        return jsonify(
-            notifications=notifications,
-            unread_count=unread_count,
-            total=len(notifications),
-        ), 200
-    except Exception as e:
-        return jsonify(error=str(e)), 500
+    user_id = user.id
+    
+    notifications = NotificationService.get_user_notifications(
+        user_id=user_id,
+        limit=limit,
+        unread_only=unread_only
+    )
+    unread_count = NotificationService.get_unread_count(user_id)
+    
+    return {
+        "notifications": notifications,
+        "unread_count": unread_count,
+        "total": len(notifications),
+    }
 
-
-@notification_bp.route("/unread", methods=["GET"])
-@jwt_required()
-def get_unread_count():
+@notification_router.get("/unread")
+async def get_unread_count(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Get count of unread notifications."""
-    try:
-        user_id = int(get_jwt_identity())
-        count = NotificationService.get_unread_count(user_id)
-        return jsonify(unread_count=count), 200
-    except Exception as e:
-        return jsonify(error=str(e)), 500
+    user_id = user.id
+    count = NotificationService.get_unread_count(user_id)
+    return {"unread_count": count}
 
-
-@notification_bp.route("/<int:notification_id>/read", methods=["PATCH"])
-@jwt_required()
-def mark_as_read(notification_id):
+@notification_router.patch("/{notification_id}/read")
+async def mark_as_read(notification_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Mark a notification as read."""
-    try:
-        user_id = int(get_jwt_identity())
-        success = NotificationService.mark_as_read(user_id, notification_id)
+    user_id = user.id
+    success = NotificationService.mark_as_read(user_id, notification_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Notification not found")
         
-        if not success:
-            return jsonify(error="Notification not found"), 404
-        
-        unread_count = NotificationService.get_unread_count(user_id)
-        return jsonify(success=True, unread_count=unread_count), 200
-    except Exception as e:
-        return jsonify(error=str(e)), 500
+    unread_count = NotificationService.get_unread_count(user_id)
+    return {"success": True, "unread_count": unread_count}
 
-
-@notification_bp.route("/read-all", methods=["PATCH"])
-@jwt_required()
-def mark_all_as_read():
+@notification_router.patch("/read-all")
+async def mark_all_as_read(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Mark all notifications as read."""
-    try:
-        user_id = int(get_jwt_identity())
-        marked_count = NotificationService.mark_all_as_read(user_id)
-        
-        return jsonify(
-            success=True,
-            marked_count=marked_count,
-            unread_count=0
-        ), 200
-    except Exception as e:
-        return jsonify(error=str(e)), 500
+    
+    user_id = user.id
+    marked_count = NotificationService.mark_all_as_read(user_id)
+    
+    return {
+        "success": True,
+        "marked_count": marked_count,
+        "unread_count": 0
+    }
 
-
-@notification_bp.route("/<int:notification_id>", methods=["DELETE"])
-@jwt_required()
-def delete_notification(notification_id):
+@notification_router.delete("/{notification_id}")
+async def delete_notification(notification_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Delete a notification."""
-    try:
-        user_id = int(get_jwt_identity())
-        success = NotificationService.delete_notification(user_id, notification_id)
+    user_id = user.id
+    success = NotificationService.delete_notification(user_id, notification_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Notification not found")
         
-        if not success:
-            return jsonify(error="Notification not found"), 404
-        
-        return jsonify(success=True), 200
-    except Exception as e:
-        return jsonify(error=str(e)), 500
+    return {"success": True}
 
-
-@notification_bp.route("/clear-all", methods=["DELETE"])
-@jwt_required()
-def clear_all():
+@notification_router.delete("/clear-all")
+async def clear_all(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Delete all notifications for the user."""
-    try:
-        user_id = int(get_jwt_identity())
-        deleted_count = NotificationService.clear_all_notifications(user_id)
-        
-        return jsonify(success=True, deleted_count=deleted_count), 200
-    except Exception as e:
-        return jsonify(error=str(e)), 500
+    user_id = user.id
+    deleted_count = NotificationService.clear_all_notifications(user_id)
+    
+    return {"success": True, "deleted_count": deleted_count}

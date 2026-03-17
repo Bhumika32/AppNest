@@ -15,7 +15,7 @@
 # - Level thresholds are absolute total XP values
 # -----------------------------------------------------------------------------
 
-from app.core.extensions import db
+from sqlalchemy.orm import Session
 from app.models.user_progression import UserProgression
 from app.models.xp_transaction import XPTransaction
 
@@ -47,14 +47,12 @@ class ProgressionService:
     # GET USER PROGRESSION
     # -------------------------------------------------------------------------
     @staticmethod
-    def get_user_progression(user_id: int) -> UserProgression:
-
-        progression = UserProgression.query.filter_by(user_id=user_id).first()
-
+    def get_user_progression(db: Session, user_id: int) -> UserProgression:
+        progression = db.query(UserProgression).filter_by(user_id=user_id).first()
         if not progression:
             progression = UserProgression(user_id=user_id)
-            db.session.add(progression)
-            db.session.commit()
+            db.add(progression)
+            db.commit()
 
         return progression
 
@@ -64,14 +62,15 @@ class ProgressionService:
     @staticmethod
     def calculate_total_xp_for_level(level: int) -> int:
         """
-        Returns cumulative XP required to reach a given level.
-        This ensures progression scales smoothly as levels increase.
+        Returns cumulative XP required to reach a given level from level 1.
+        Formula: level takes (100 + current_level * 20) XP to complete.
         """
-
         if level <= 1:
             return 0
-
-        return int(100 * (level ** 1.8))
+        total = 0
+        for i in range(1, level):
+            total += 100 + (i * 20)
+        return total
 
     # -------------------------------------------------------------------------
     # RANK TITLE
@@ -94,6 +93,7 @@ class ProgressionService:
     # -------------------------------------------------------------------------
     @staticmethod
     def award_xp(
+        db: Session,
         user_id: int,
         module_id: int,
         base_reward: int,
@@ -127,7 +127,7 @@ class ProgressionService:
             reason=reason
         )
 
-        db.session.add(transaction)
+        db.add(transaction)
 
         # -------------------------------------------------------------
         # UPDATE TOTAL XP
@@ -151,17 +151,35 @@ class ProgressionService:
                 progression.level
             )
 
-        db.session.commit()
+        db.commit()
+        
+        # Calculate full stats for frontend
+        xp_required_for_next = 100 + (progression.level * 20)
+        base_xp_for_current_level = ProgressionService.calculate_total_xp_for_level(progression.level)
+        xp_in_current_level = progression.total_xp - base_xp_for_current_level
+        
+        # ensure progress percent does not exceed 100% (it shouldn't but just in case)
+        progress_percent = int((xp_in_current_level / xp_required_for_next) * 100)
+        progress_percent = min(100, max(0, progress_percent))
+
+        # Emit milestone event if applicable
+        if leveled_up and progression.level in [10, 25, 50, 100]:
+            from app.domain.event_bus import EventBus
+            EventBus.publish("LEVEL_MILESTONE", {
+                "user_id": user_id,
+                "level": progression.level,
+                "rank": progression.rank_title
+            })
 
         return {
             "xp_awarded": total_xp_awarded,
-            "new_total": progression.total_xp,
+            "total_xp": progression.total_xp,
             "level": progression.level,
+            "xp_in_current_level": xp_in_current_level,
+            "xp_required_for_next_level": xp_required_for_next,
+            "progress_percent": progress_percent,
             "leveled_up": leveled_up,
-            "rank_title": progression.rank_title,
-            "xp_required_next_level": ProgressionService.calculate_total_xp_for_level(
-                progression.level + 1
-            )
+            "rank_title": progression.rank_title
         }
 
 # from app.core.extensions import db

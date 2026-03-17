@@ -18,7 +18,8 @@
 
 import json
 
-from app.core.extensions import db
+from sqlalchemy.orm import Session
+from app.core.database import get_db
 from app.models.game_session import GameSession
 from app.models.module import Module
 from app.models.user import User
@@ -40,18 +41,50 @@ class LifecycleService:
     # MODULE EXECUTION
     # -------------------------------------------------------------------------
     @staticmethod
-    def execute_module(user_id: int, module_slug: str, payload: dict, entry_id: int = None):
+    def execute_module(
 
-        user = db.session.get(User, user_id)
-        module = ModuleService.get_module_by_slug(module_slug)
+        db: Session, 
+        user_id: int, 
+        module_slug: str, 
+        payload: dict, 
+        entry_id: int = None):
+
+        user = db.get(User, user_id)
+        module = ModuleService.get_module_by_slug(db, module_slug)
 
         if not module:
             raise ValueError(f"Module not found: {module_slug}")
+
+        from app.core.redis_client import neural_cache
+
+        cooldown_amount = 3 if module.type == 'tool' else 1
+        cooldown_key = f"cooldown:{user_id}:{module_slug}"
+        if neural_cache.get(cooldown_key):
+            return {
+                "executor_result": {"error": "COOLDOWN_ACTIVE", "message": f"Please wait {cooldown_amount}s before executing again."},
+                "lifecycle": None,
+                "module": module.to_dict(),
+                "is_complete": False
+            }
+        neural_cache.set(cooldown_key, "1", ex=cooldown_amount)
+
+        if entry_id:
+            lock_key = f"session_active:{user_id}:{module.id}"
+            active_entry = neural_cache.get(lock_key)
+            if active_entry and str(active_entry) != str(entry_id):
+                return {
+                    "executor_result": {"error": "INVALID_SESSION", "message": "Session has expired or is invalid."},
+                    "lifecycle": None,
+                    "module": module.to_dict(),
+                    "is_complete": False
+                }
 
         try:
             executor = get_executor(module_slug)
             result = getattr(executor, "safe_execute", executor.execute)(payload, user)
 
+        except KeyError as e:
+            raise e
         except Exception:
             import traceback
             traceback.print_exc()
@@ -73,6 +106,9 @@ class LifecycleService:
             result = {"raw": result}
 
         normalized_result = ExperienceEngine.normalize_result(result)
+        normalized_result.setdefault("completed", True)
+        normalized_result.setdefault("score", 0)
+        normalized_result.setdefault("metadata", {})
 
         score = normalized_result.get("score", 0)
         score = max(0, min(score, 100))
@@ -82,28 +118,53 @@ class LifecycleService:
         lifecycle_res = None
 
         if is_complete:
-
-            ExperienceEngine.process_module_result(
-                user_id,
-                module_slug,
-                normalized_result
-            )
-
             completion_payload = {
                 "module_id": module.id,
                 "module_slug": module_slug,
                 "score": score,
                 "duration": payload.get("duration", 0),
                 "difficulty": payload.get("difficulty", "EASY"),
-                "result": "completed",
+                "result": normalized_result.get("metadata", {}).get("status", "completed"),
                 "metadata": normalized_result.get("metadata", {}),
-                "entry_id": entry_id
+                "entry_id": entry_id,
+                "input": payload
             }
 
             lifecycle_res = LifecycleService.complete_module(
                 user_id,
                 completion_payload
             )
+
+            # Architecture fix: delegate mentor processing to async background task
+            normalized_result['lifecycle_res'] = lifecycle_res
+            
+            # import asyncio
+            # try:
+            #     loop = asyncio.get_event_loop()
+            #     if loop.is_running():
+            #         loop.create_task(asyncio.to_thread(ExperienceEngine.process_module_result, user_id, module_slug, normalized_result))
+            #     else:
+            #         asyncio.run(asyncio.to_thread(ExperienceEngine.process_module_result, user_id, module_slug, normalized_result))
+            # except Exception as e:
+            #      # Fallback if no loop
+            #      ExperienceEngine.process_module_result(user_id, module_slug, normalized_result)
+            import asyncio
+
+            try:
+                loop = asyncio.get_running_loop()
+                loop.run_in_executor(
+                    None,
+                    ExperienceEngine.process_module_result,
+                    user_id,
+                    module_slug,
+                    normalized_result
+                )
+            except RuntimeError:
+                ExperienceEngine.process_module_result(
+                    user_id,
+                    module_slug,
+                    normalized_result
+                )
 
         return {
             "executor_result": result,
@@ -116,7 +177,8 @@ class LifecycleService:
     # MODULE COMPLETION HANDLER
     # -------------------------------------------------------------------------
     @staticmethod
-    def complete_module(user_id: int, payload: dict):
+    def complete_module(
+        db: Session, user_id: int, payload: dict):
 
         module_id = payload.get("module_id")
         module_slug = payload.get("module_slug", "unknown")
@@ -125,6 +187,14 @@ class LifecycleService:
         difficulty = payload.get("difficulty", "EASY")
         result_status = payload.get("result", "completed")
         metadata = payload.get("metadata", {})
+
+        import json
+        from app.core.redis_client import neural_cache
+        
+        # ATOMIC LOCK: Prevent race condition if multiple execute calls hit for same entry/session
+        lock_key = f"xp_lock:{user_id}:{module_slug}:{payload.get('entry_id', 'none')}"
+        if not neural_cache.set(lock_key, "locked", ex=30, nx=True):
+            return {"status": "already_processed", "message": "Module completion already in progress."}
 
         if isinstance(metadata, dict):
             metadata["status"] = result_status
@@ -137,12 +207,73 @@ class LifecycleService:
             meta=json.dumps(metadata) if isinstance(metadata, dict) else str(metadata)
         )
 
-        db.session.add(session)
+        db.add(session)
 
-        module = db.session.get(Module, module_id)
+        module = db.get(Module, module_id)
         base_xp = module.xp_reward_base if module else 10
+        performance_bonus = 0
 
-        performance_bonus = int(score / 100)
+        # STREAK CALCULATOR
+        streak_bonus = 0
+        import datetime
+        from app.core.redis_client import neural_cache
+        today_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+        streak_key = f"streak:{user_id}"
+        last_active_key = f"last_active:{user_id}"
+        
+        last_active = neural_cache.get(last_active_key)
+        streak = int(neural_cache.get(streak_key) or 0)
+        
+        if last_active != today_str:
+            yesterday_str = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+            if last_active == yesterday_str:
+                streak += 1
+            else:
+                streak = 1
+            
+            neural_cache.set(streak_key, streak)
+            neural_cache.set(last_active_key, today_str)
+            
+            if streak == 3: streak_bonus = 5
+            elif streak == 7: streak_bonus = 10
+            elif streak == 14: streak_bonus = 20
+            
+            if streak > 1:
+                EventBus.publish(Events.STREAK_UPDATED, {
+                    "user_id": user_id,
+                    "streak": streak
+                })
+
+        # TOOL AND GAME XP RULES
+        if module:
+            if module.type == 'tool':
+                import hashlib
+                import json
+                input_hash = hashlib.sha256(json.dumps(payload.get('input', {})).encode()).hexdigest()
+                hash_key = f"tool_hash:{user_id}:{module_slug}:{input_hash}"
+                daily_cap_key = f"tool_cap:{user_id}:{today_str}"
+                
+                daily_xp = int(neural_cache.get(daily_cap_key) or 0)
+                if neural_cache.get(hash_key):
+                    base_xp = 0  # Identical input used previously
+                elif daily_xp >= 20:
+                    base_xp = 0  # Reached daily 20 XP cap for tools
+                else:
+                    base_xp = min(3, 20 - daily_xp) 
+                    neural_cache.set(hash_key, "1", ex=86400)
+                    neural_cache.set(daily_cap_key, str(daily_xp + base_xp), ex=86400)
+            elif module.type == 'game':
+                if duration < 5:
+                    base_xp = 0
+                else:
+                    if module_slug == 'tic-tac-toe':
+                        if result_status == 'win': base_xp = 40
+                        elif result_status == 'draw': base_xp = 20
+                        else: base_xp = 5
+                    else:
+                        # Hungry Snake, Flappy Bird, Brick Breaker
+                        base_xp = max(5, int(score * 1.2)) # Score based scaling + multiplier bonus later
+                        performance_bonus = int((score / 50.0) * 10) # extra performance incentive
 
         xp_result = ProgressionService.award_xp(
             user_id=user_id,
@@ -150,14 +281,16 @@ class LifecycleService:
             base_reward=base_xp,
             difficulty=difficulty,
             performance_bonus=performance_bonus,
+            streak_bonus=streak_bonus,
             reason=f"Completed {module.name if module else 'Module'}"
         )
 
-        db.session.commit()
+        db.commit()
 
         LeaderboardService.update_score(user_id, module_slug, score)
 
         completed_quests = QuestService.process_module_completion(
+            db,
             user_id,
             module_slug,
             score
@@ -198,7 +331,7 @@ class LifecycleService:
 
             EventBus.publish(Events.LEVEL_UP, {
                 "user_id": user_id,
-                "new_level": xp_result["new_level"]
+                "new_level": xp_result["level"]
             })
 
         return {
@@ -207,212 +340,3 @@ class LifecycleService:
             "session_id": session.id,
             "completed_quests": [uq.to_dict() for uq in completed_quests]
         }
-# from app.core.extensions import db
-# from app.models.game_session import GameSession
-# from app.domain.progression_service import ProgressionService
-# from app.domain.module_service import ModuleService
-# from app.domain.event_bus import EventBus, Events
-# from app.platform.module_registry import get_executor
-# from app.platform.module_result import ModuleResult
-# from app.domain.roast_service import RoastService
-# from app.domain.mentor_service import MentorService
-# from datetime import datetime
-
-# class LifecycleService:
-#     """
-#     Manages the lifecycle of modules (START -> ACTIVE -> COMPLETE -> REWARD).
-#     """
-
-#     @staticmethod
-#     def execute_module(user_id: int, module_slug: str, payload: dict, entry_id: int = None) -> dict:
-#         """
-#         Executes a module via the platform executor and processes lifecycle.
-#         """
-#         from app.models.user import User
-#         from app.domain.experience_engine import ExperienceEngine
-#         user = User.query.get(user_id)
-#         # 1. Resolve Module from slug
-#         module = ModuleService.get_module_by_slug(module_slug)
-#         if not module:
-#              raise ValueError(f"Module not found: {module_slug}")
-
-#         # 2. Execute module logic
-#         try:
-#             executor = get_executor(module_slug)
-#             result = getattr(executor, 'safe_execute', executor.execute)(payload, user)
-#         except Exception:
-#             import traceback
-#             traceback.print_exc()
-#             result = {
-#                 "error": "MODULE_EXECUTION_FAILED",
-#                 "message": "Tool execution failed"
-#             }
-        
-#         # 3. Process lifecycle completion
-#         # Standard rules:
-#         # - Always treat as completed if frontend sends end/analytics (handled in completion logic)
-#         # - Fallback to result.get("completed") if present
-#         is_complete = result.get("completed", False) if isinstance(result, dict) else False
-        
-#         # If the result isn't standardized, normalize it
-#         normalized_result = ExperienceEngine.normalize_result(result if isinstance(result, dict) else {"raw": result})
-        
-#         # 4. Delegate Feedback and Completion to ExperienceEngine if complete
-#         lifecycle_res = None
-#         roast = None
-#         advice = None
-        
-#         if is_complete:
-#             # ExperienceEngine handles all UX decisions
-#             ExperienceEngine.process_module_result(user_id, module_slug, result if isinstance(result, dict) else {"raw": result})
-            
-#             # For backward compatibility with existing controllers expecting these in return
-#             # We still generate them here or pull them from the engine if needed
-#             roast = RoastService.get_roast(module_slug, module_result=None, user=user) # result is managed in engine now
-#             advice = MentorService.get_advice(module_slug, module_result=None, user=user)
-            
-#             completion_payload = {
-#                 'module_id': module.id,
-#                 'module_slug': module_slug,
-#                 'score': normalized_result["score"],
-#                 'duration': payload.get('duration', 0),
-#                 'difficulty': payload.get('difficulty', 'EASY'),
-#                 'result': 'completed',
-#                 'metadata': normalized_result["metadata"],
-#                 'entry_id': entry_id
-#             }
-#             lifecycle_res = LifecycleService.complete_module(user_id, completion_payload)
-
-#         return {
-#             "executor_result": result, 
-#             "lifecycle": lifecycle_res,
-#             "module": module.to_dict(),
-#             "is_complete": is_complete,
-#             "roast": roast,
-#             "advice": advice
-#         }
-
-#     @staticmethod
-#     def complete_module(user_id: int, payload: dict) -> dict:
-#         """
-#         Processes a module completion, awards XP, and fires events.
-#         """
-#         import json
-#         from app.domain.experience_engine import ExperienceEngine
-        
-#         module_id = payload.get('module_id')
-#         module_slug = payload.get('module_slug', 'unknown')
-#         score = payload.get('score', 0)
-#         duration = payload.get('duration', 0)
-#         difficulty = payload.get('difficulty', 'EASY')
-#         result_status = payload.get('result', 'completed')
-#         metadata = payload.get('metadata', {})
-
-#         if isinstance(metadata, dict):
-#             metadata['status'] = result_status
-
-#         # 1. Close out any Game Session / record it
-#         session = GameSession(
-#             user_id=user_id,
-#             game_key=module_slug,
-#             score=score,
-#             duration_seconds=duration,
-#             meta=json.dumps(metadata) if isinstance(metadata, dict) else str(metadata)
-#         )
-#         db.session.add(session)
-
-#         # 2. Get Module
-#         from app.models.module import Module
-#         module = Module.query.get(module_id)
-#         base_xp = module.xp_reward_base if module else 10
-
-#         # 3. Reward XP
-#         performance_bonus = int(score / 100) if score > 0 else 0
-        
-#         xp_result = ProgressionService.award_xp(
-#             user_id=user_id,
-#             module_id=module_id,
-#             base_reward=base_xp,
-#             difficulty=difficulty,
-#             performance_bonus=performance_bonus,
-#             reason=f"Completed {module.name if module else 'Module'}"
-#         )
-
-#         db.session.commit()
-
-#         # 4. Gamification Updates
-#         from app.domain.leaderboard_service import LeaderboardService
-#         from app.domain.quest_service import QuestService
-
-#         LeaderboardService.update_score(user_id, module_slug, score)
-#         completed_quests = QuestService.process_module_completion(user_id, module_slug, score)
-
-#         # 5. Emit Centralized Experience Events
-#         # Instead of multiple direct EventBus calls, ExperienceEngine can be notified here as well
-#         # or we keep EventBus for other subsystems but ensure ExperienceEngine is the one emitting Sockets.
-        
-#         EventBus.publish(Events.MODULE_COMPLETED, {
-#             "user_id": user_id,
-#             "module_id": module_id,
-#             "session_id": session.id,
-#             "result": result_status,
-#             "score": score
-#         })
-
-#         # ExperienceEngine handles XP, Quest, and Level Up
-#         # Both as real-time Toasts and persistent Notifications as requested
-#         ExperienceEngine.dispatch_events(user_id, [
-#             {
-#                 "type": "xp_awarded", 
-#                 "delivery": "toast", 
-#                 "data": xp_result
-#             },
-#             {
-#                 "type": "xp_earned", 
-#                 "delivery": "notification", 
-#                 "title": "XP Earned", 
-#                 "message": f"You gained {xp_result['xp_awarded']} XP for completing {module_slug}.",
-#                 "category": "credit"
-#             },
-#             {
-#                 "type": "module_completed", 
-#                 "delivery": "notification", 
-#                 "title": "Activity Complete", 
-#                 "message": f"You've successfully finished {module_slug.title()}.",
-#                 "category": "achievement"
-#             }
-#         ])
-
-#         if xp_result.get("leveled_up"):
-#             ExperienceEngine.dispatch_events(user_id, [
-#                 {
-#                     "type": "level_up", 
-#                     "delivery": "toast", 
-#                     "data": xp_result
-#                 },
-#                 {
-#                     "type": "level_up_notif", 
-#                     "delivery": "notification", 
-#                     "title": "Leveled Up!", 
-#                     "message": f"Congratulations! You reached Level {xp_result['level']}.",
-#                     "category": "achievement"
-#                 }
-#             ])
-
-#         for uq in completed_quests:
-#             ExperienceEngine.dispatch_events(user_id, [
-#                 {
-#                     "type": "quest_completed", 
-#                     "delivery": "notification", 
-#                     "title": "Quest Completed!", 
-#                     "message": f"You finished '{uq.quest.title}' and earned {uq.quest.xp_reward} XP.",
-#                     "category": "achievement"
-#                 }
-#             ])
-
-#         return {
-#             "status": "success",
-#             "xp_reward": xp_result,
-#             "session_id": session.id,
-#             "completed_quests": [uq.to_dict() for uq in completed_quests]
-#         }
