@@ -1,61 +1,20 @@
-# ======================
-# ENV FILES
-# ======================
+# ========================
+# 🔐 Secrets & Environment
+# ========================
 .env
-# ======================
-# Archives / Dumps (CRITICAL)
-# ======================
-*.zip
-*.tar
-*.gz
-*.rar
+.env.*
+.flaskenv
 
-# Project backups (your current mess)
-backend.zip
-backend_old.zip
-frontend.zip
-# ======================
-# Python Backend
-# ======================
-Backend/venv/
-Backend/__pycache__/
-Backend/*.pyc
-
-# ======================
-# React Frontend
-# ======================
-Frontend/node_modules/
-Frontend/dist/
-Frontend/build/
-Frontend/.vite/
-
-# ======================
-# System / IDE
-# ======================
-.vscode/*
-!.vscode/settings.json
-.DS_Store
-Thumbs.db
-.vscode/
-# ======================
-# Logs
-# ======================
+# ========================
+# 🐍 Python
+# ========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
 *.log
-# Python cache (VERY IMPORTANT)
-__pycache__/
-*.py[cod]
-*$py.class
-# Node
-node_modules/
-npm-debug.log*
-package-lock.json
 
-# Python
-__pycache__/
-*.py[cod]
-venv/
-.env
-# Python virtual environments
+# Virtual environments
 venv/
 .venv/
 env/
@@ -63,15 +22,186 @@ ENV/
 backend/venv/
 backend/.venv/
 
-# Build
-dist/
+# ========================
+# 📦 Python Build / Cache
+# ========================
 build/
-.vite/
+dist/
+*.egg-info/
 
+# ========================
+# 🗄 Database / Instance
+# ========================
+*.sqlite3
 *.db
 backend/instance/
 
-# Python cache
-__pycache__/
-*.py[cod]
-*.pyo
+# ========================
+# ⚛️ Node / React
+# ========================
+node_modules/
+npm-debug.log*
+package-lock.json
+
+Frontend/node_modules/
+Frontend/dist/
+Frontend/build/
+Frontend/.vite/
+
+# ========================
+# ⚙️ System / IDE
+# ========================
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ========================
+# 📁 Archives / Backups
+# ========================
+*.zip
+*.tar
+*.gz
+*.rar
+
+backend.zip
+backend_old.zip
+frontend.zip
+
+# ========================
+# 📁 Local Dev Files
+# ========================
+structure.txt
+# <<<<<<< HEAD
+# # ======================
+# # ENV FILES
+# # ======================
+# .env
+# # ======================
+# # Archives / Dumps (CRITICAL)
+# # ======================
+# *.zip
+# *.tar
+# *.gz
+# *.rar
+
+# # Project backups (your current mess)
+# backend.zip
+# backend_old.zip
+# frontend.zip
+# # ======================
+# # Python Backend
+# # ======================
+# Backend/venv/
+# Backend/__pycache__/
+# Backend/*.pyc
+
+# # ======================
+# # React Frontend
+# # ======================
+# Frontend/node_modules/
+# Frontend/dist/
+# Frontend/build/
+# Frontend/.vite/
+
+# # ======================
+# # System / IDE
+# # ======================
+# .vscode/*
+# !.vscode/settings.json
+# .DS_Store
+# Thumbs.db
+# .vscode/
+# # ======================
+# # Logs
+# # ======================
+# *.log
+# # Python cache (VERY IMPORTANT)
+# __pycache__/
+# *.py[cod]
+# *$py.class
+# # Node
+# node_modules/
+# npm-debug.log*
+# package-lock.json
+
+# # Python
+# __pycache__/
+# *.py[cod]
+# venv/
+# .env
+# # Python virtual environments
+# venv/
+# .venv/
+# env/
+# ENV/
+# backend/venv/
+# backend/.venv/
+
+# # Build
+# dist/
+# build/
+# .vite/
+
+# *.db
+# backend/instance/
+
+# # Python cache
+# __pycache__/
+# *.py[cod]
+# *.pyo
+# =======
+# # ========================
+# # 🔐 Secrets & Env files
+# # ========================
+# .env
+# .flaskenv
+
+# # ========================
+# # 🐍 Python
+# # ========================
+# __pycache__/
+# *.py[cod]
+# *.pyo
+# *.pyd
+# *.log
+
+# # ========================
+# # 🧪 Virtual Environment
+# # ========================
+# venv/
+# .env/
+# .venv/
+
+# # ========================
+# # 🧠 IDE / Editor
+# # ========================
+# .vscode/
+# .idea/
+# *.swp
+
+# # ========================
+# # 🖥 OS
+# # ========================
+# .DS_Store
+# Thumbs.db
+
+# # ========================
+# # 🔄 Flask / Runtime
+# # ========================
+# instance/
+# *.sqlite3
+
+# # ========================
+# # 📦 Build / Cache
+# # ========================
+# build/
+# dist/
+# *.egg-info/
+
+# # ========================
+# # 🧾 Local-only files
+# # ========================
+# structure.txt
+# >>>>>>> origin/main

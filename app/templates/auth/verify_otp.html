@@ -1,0 +1,73 @@
+<!--
+app/templates/auth/verify_otp.html
+
+Professional OTP verification UI.
+Features:
+- Shows masked email (optional)
+- OTP input
+- Resend OTP link
+- Back to Register and Back to Login options
+-->
+
+{% extends "base.html" %}
+{% block title %}Verify OTP | AppNest{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-6 col-lg-5">
+    <div class="auth-card">
+
+      <h3 class="fw-bold mb-1">Verify OTP ✅</h3>
+      <p class="auth-subtitle mb-3">
+        Enter the 6-digit OTP sent to your email.
+        OTP expires in <b>10 minutes</b>.
+      </p>
+
+      <form method="POST" action="{{ url_for('auth.verify_otp') }}">
+        <div class="mb-3">
+          <label class="form-label">OTP Code</label>
+          <input
+            class="form-control text-center fw-bold otp-input"
+            type="text"
+            name="otp"
+            maxlength="6"
+            minlength="6"
+            inputmode="numeric"
+            pattern="[0-9]{6}"
+            placeholder="------"
+            required
+          />
+          <div class="form-text text-white-50">
+            Tip: Check spam/junk folder if you don’t see the OTP.
+          </div>
+        </div>
+
+        <button class="btn btn-success w-100" type="submit">
+          Verify OTP
+        </button>
+      </form>
+
+      <hr class="my-4 opacity-25" />
+
+      <div class="d-flex justify-content-between align-items-center">
+    <form method="POST" action="{{ url_for('auth.resend_otp') }}" class="m-0 p-0">
+    <button type="submit" class="btn btn-link p-0 text-decoration-none small">
+        Resend OTP
+    </button>
+    </form>
+
+        <a href="{{ url_for('auth.register') }}" class="text-decoration-none small">
+          Back to Register
+        </a>
+      </div>
+
+      <div class="text-center mt-3">
+        <a href="{{ url_for('auth.login') }}" class="text-decoration-none small">
+          Back to Login
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

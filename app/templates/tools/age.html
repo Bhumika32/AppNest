@@ -1,0 +1,250 @@
+<!--
+app/templates/tools/age.html
+
+Age Calculator Tool UI (AppNest):
+- DOB dropdown picker (DD / MM / YYYY)
+- Fun Mode toggle (default ON)
+- Roast Mode toggle (optional)
+- Preserves values after submit
+- Copy message button
+- Shows fun fact
+-->
+
+{% extends "base.html" %}
+{% block title %}Age Calculator | AppNest{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-9 col-lg-7">
+
+    <div class="auth-card">
+
+      <!-- Heading -->
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div>
+          <h2 class="fw-bold mb-1">Age Calculator 🎂</h2>
+          <p class="text-white-50 mb-0">
+            Calculate your exact age + get a fun message 😄
+          </p>
+        </div>
+
+        <div class="text-end small text-white-50">
+          <div class="fw-semibold">Mood</div>
+          {% if roast_mode %}
+            🔥 Roast
+          {% elif fun_mode %}
+            😄 Fun
+          {% else %}
+            ✅ Normal
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Form -->
+      <form method="POST">
+
+        <!-- Name -->
+        <div class="mb-3">
+          <label class="form-label">Your Name</label>
+          <input
+            class="form-control"
+            type="text"
+            name="name"
+            placeholder="e.g. Bhumi"
+            required
+            value="{{ entered_name or '' }}"
+          />
+        </div>
+
+        <!-- DOB Dropdown Picker -->
+        <div class="mb-3">
+          <label class="form-label">Date of Birth</label>
+
+          <div class="row g-2">
+            <!-- Day -->
+            <div class="col-4">
+              <label class="form-label small text-white-50 mb-1">Day</label>
+              <select class="form-select" name="dob_day" required>
+                <option value="">DD</option>
+                {% for d in range(1, 32) %}
+                  <option value="{{ d }}" {% if selected_day|int == d %}selected{% endif %}>
+                    {{ d }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Month -->
+            <div class="col-4">
+              <label class="form-label small text-white-50 mb-1">Month</label>
+              <select class="form-select" name="dob_month" required>
+                <option value="">MM</option>
+                {% for m in range(1, 13) %}
+                  <option value="{{ m }}" {% if selected_month|int == m %}selected{% endif %}>
+                    {{ m }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Year -->
+            <div class="col-4">
+              <label class="form-label small text-white-50 mb-1">Year</label>
+              <select class="form-select" name="dob_year" required>
+                <option value="">YYYY</option>
+                {% for y in range(1950, 2027) %}
+                  <option value="{{ y }}" {% if selected_year|int == y %}selected{% endif %}>
+                    {{ y }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-text text-white-50 mt-2">
+            Tip: Dropdown DOB feels faster than calendar 😄
+          </div>
+        </div>
+
+        <!-- Fun Mode -->
+        <div class="form-check form-switch mb-2">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            id="funModeSwitch"
+            name="fun_mode"
+            {% if fun_mode %}checked{% endif %}
+          />
+          <label class="form-check-label" for="funModeSwitch">
+            Fun Mode 😄 (recommended)
+          </label>
+        </div>
+
+        <!-- Roast Mode -->
+        <div class="form-check form-switch mb-3">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            id="roastModeSwitch"
+            name="roast_mode"
+            {% if roast_mode %}checked{% endif %}
+            {% if not fun_mode %}disabled{% endif %}
+          />
+          <label class="form-check-label" for="roastModeSwitch">
+            Roast Mode 🔥 (extra spicy)
+          </label>
+          <div class="form-text text-white-50">
+            Just jokes 😄 Not meant to offend anyone.
+          </div>
+        </div>
+
+        <button class="btn btn-primary w-100" type="submit">
+          Calculate Age
+        </button>
+      </form>
+
+      <!-- Result -->
+      {% if result %}
+      <hr class="my-4 opacity-25"/>
+
+      <div class="d-flex align-items-center justify-content-between">
+        <h4 class="fw-bold mb-2">Result ✅</h4>
+
+        <button
+          type="button"
+          class="btn btn-outline-light btn-sm"
+          onclick="copyAgeMessage()"
+          title="Copy message"
+        >
+          📋 Copy
+        </button>
+      </div>
+
+      <div class="p-3 rounded-3 mt-2"
+        style="background: rgba(255,255,255,0.04);
+               border: 1px solid rgba(255,255,255,0.08);">
+
+        <!-- Main Message -->
+        <div class="p-3 rounded-3 mb-3"
+             style="background: rgba(0,0,0,0.25);">
+          <b>{{ result.message }}</b>
+        </div>
+
+        <div class="d-flex flex-column gap-2">
+
+          <div>🏷️ Stage: <b>{{ result.stage }}</b></div>
+          <div>📅 Born Day: <b>{{ result.born_day }}</b></div>
+
+          <div>
+            ♈ Sun Sign (Western):
+            <b>{{ result.zodiac }}</b>
+          </div>
+
+          <div class="text-white-50 small">
+            Want accurate Rashi? Try our Rashi Tool (needs birthplace + time) 🔮
+          </div>
+
+          <hr class="opacity-25 my-2"/>
+
+          <div>
+            🎯 Exact Age:
+            <b>{{ result.years }}</b> years,
+            <b>{{ result.months }}</b> months,
+            <b>{{ result.days }}</b> days
+          </div>
+
+          <div>📆 Total Days Lived: <b>{{ result.total_days_lived }}</b> days</div>
+          <div>⏳ Total Weeks Lived: <b>{{ result.total_weeks_lived }}</b> weeks</div>
+          <div>🕒 Total Hours Lived: <b>{{ result.total_hours_lived }}</b> hours</div>
+
+          <div class="text-info mt-2">
+            💡 Fun Fact: <b>{{ result.fun_fact }}</b>
+          </div>
+
+          <hr class="opacity-25 my-2"/>
+
+          <div>🎉 Next Birthday In: <b>{{ result.days_until_birthday }}</b> days</div>
+          <div>🗓️ Next Birthday Date: <b>{{ result.next_birthday_date }}</b></div>
+
+        </div>
+      </div>
+
+      <script>
+        // Toggle Fix
+        const funSwitch = document.getElementById("funModeSwitch");
+        const roastSwitch = document.getElementById("roastModeSwitch");
+
+        funSwitch.addEventListener("change", () => {
+          if (!funSwitch.checked) {
+            roastSwitch.checked = false;
+            roastSwitch.disabled = true;
+          } else {
+            roastSwitch.disabled = false;
+          }
+        });
+
+        roastSwitch.addEventListener("change", () => {
+          if (roastSwitch.checked) {
+            funSwitch.checked = true;
+            roastSwitch.disabled = false;
+          }
+        });
+
+        // Copy Function
+        function copyAgeMessage() {
+          const msg = `{{ result.message | e }}`;
+          const fact = `{{ result.fun_fact | e }}`;
+          const full = msg + "\n\nFun Fact: " + fact;
+
+          navigator.clipboard.writeText(full)
+            .then(() => alert("Copied ✅"))
+            .catch(() => alert("Copy failed ❌"));
+        }
+      </script>
+
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}

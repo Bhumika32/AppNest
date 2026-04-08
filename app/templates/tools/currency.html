@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Currency Converter | AppNest{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="auth-card">
+      <h3 class="fw-bold mb-2">Currency Converter 💱</h3>
+      <p class="text-white-50 mb-4">
+        Convert currencies using live exchange rates.
+      </p>
+
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label">Amount</label>
+          <input class="form-control" type="number" step="0.01" name="amount" value="{{ amount }}" required />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">From</label>
+          <select class="form-select" name="from_currency" required>
+            {% for code, name in symbols.items() %}
+            <option value="{{ code }}" {% if code == from_currency %}selected{% endif %}>
+                {% set sym = currency_service.get_symbol(code) %}
+                {% if sym %}{{ sym }} {% endif %}{{ code }} - {{ name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">To</label>
+          <select class="form-select" name="to_currency" required>
+            {% for code, name in symbols.items() %}
+            <option value="{{ code }}" {% if code == to_currency %}selected{% endif %}>
+                {% set sym = currency_service.get_symbol(code) %}
+                {% if sym %}{{ sym }} {% endif %}{{ code }} - {{ name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <button class="btn btn-primary w-100" type="submit">Convert</button>
+      </form>
+
+      {% if result %}
+    <hr class="my-4 opacity-25" />
+    <h5 class="fw-bold">Result</h5>
+    <p class="mb-0">
+    ✅ {{ amount }} {{ currency_service.get_symbol(from_currency) }}
+    ({{ from_currency }})
+    =
+    <b>{{ result }}</b> {{ currency_service.get_symbol(to_currency) }}
+    ({{ to_currency }})
+    </p>
+    {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

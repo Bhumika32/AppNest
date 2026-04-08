@@ -1,0 +1,49 @@
+<!--
+app/templates/auth/register.html
+
+Professional registration UI for AppNest.
+Next step will add OTP verification flow after registration.
+-->
+
+{% extends "base.html" %}
+{% block title %}Register | AppNest{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-6 col-lg-5">
+    <div class="auth-card">
+      <h3 class="fw-bold mb-1">Create Account 🚀</h3>
+      <p class="auth-subtitle mb-4">Join AppNest and access multiple tools in one place.</p>
+
+      <form method="POST" action="{{ url_for('auth.register') }}">
+        <div class="mb-3">
+          <label class="form-label">Username</label>
+          <input class="form-control" type="text" name="username" required />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Email</label>
+          <input class="form-control" type="email" name="email" required />
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Password</label>
+          <input class="form-control" type="password" name="password" required />
+        </div>
+        
+        <div class="mb-3">
+        <label class="form-label">Confirm Password</label>
+        <input class="form-control" type="password" name="confirm_password" required />
+        </div>
+
+        <button class="btn btn-success w-100" type="submit">Create Account</button>
+      </form>
+
+      <p class="mt-3 mb-0 text-center">
+        Already have an account?
+        <a href="{{ url_for('auth.login') }}" class="text-decoration-none fw-semibold">Login</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
