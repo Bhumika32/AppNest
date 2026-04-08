@@ -176,7 +176,7 @@ class UnitConverterService:
 from app.platform.module_result import ModuleResult
 
 class UnitConverterExecutor(ModuleExecutor):
-    module_key = "unit-converter"
+    module_key = "UnitConverter"
 
     def execute(self, payload: dict, user) -> ModuleResult:
         metadata = payload.get("metadata", {})

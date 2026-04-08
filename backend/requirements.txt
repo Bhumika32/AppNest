@@ -9,10 +9,13 @@ PyMySQL==1.1.1
 
 PyJWT==2.8.0
 requests==2.32.3
-google-genai
-redis
-python-socketio[asgi]==5.11.1
+Werkzeug==3.0.1
+redis==5.0.1
+python-socketio==5.11.1
 eventlet==0.33.3
+
 pydantic==2.10.4
-pydantic_settings
-pydantinc[email]
+pydantic-settings==2.1.0
+pydantic[email]==2.10.4
+
+google-genai

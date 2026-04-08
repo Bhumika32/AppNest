@@ -3,7 +3,7 @@ from app.platform.module_result import ModuleResult
 import random
 
 class JokeExecutor(ModuleExecutor):
-    module_key = "joke"
+    module_key = "JokeGenerator"
     
     def execute(self, payload: dict, user) -> ModuleResult:
         jokes = [

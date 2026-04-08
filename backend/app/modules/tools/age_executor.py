@@ -337,7 +337,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AgeExecutor(ModuleExecutor):
-    module_key = "age-calculator"
+    module_key = "AgeCalculator"
 
     def execute(self, payload: dict, user) -> ModuleResult:
         logger.info(f"Executing Age Calculator for user: {user.id}")

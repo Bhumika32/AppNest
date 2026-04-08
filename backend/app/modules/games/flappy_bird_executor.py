@@ -126,7 +126,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class FlappyBirdExecutor(ModuleExecutor):
-    module_key = "flappy-bird"
+    module_key = "FlappyBirdGame"
 
     def execute(self, payload: dict, user) -> ModuleResult:
         logger.info(f"Executing Flappy Bird for user: {user.id}")

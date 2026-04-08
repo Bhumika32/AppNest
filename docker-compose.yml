@@ -1,16 +1,9 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  redis:
-    image: "redis:alpine"
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: always
-
   db:
-    image: "postgres:15-alpine"
+    image: postgres:15-alpine
+    restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
@@ -19,28 +12,40 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
     restart: always
+    ports:
+      - "6379:6379"
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    restart: always
     ports:
       - "5000:5000"
     environment:
-      - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql://postgres:password@db:5432/appnest
-      - ENV=development
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=dev_secret_key_change_in_production
+      - CORS_ORIGINS=["http://localhost:5173", "http://localhost:3000", "http://localhost:80", "http://localhost", "http://127.0.0.1"]
     depends_on:
-      - redis
       - db
-    volumes:
-      - ./backend:/app
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:5000/api
     restart: always
-    # Note: Depending on existing Dockerfile we might want a command here, but honoring the build definition typically.
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
 
 volumes:
-  redis_data:
   postgres_data:

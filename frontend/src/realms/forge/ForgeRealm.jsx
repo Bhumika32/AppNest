@@ -57,6 +57,9 @@ const ForgeRealm = () => {
         t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.category?.toLowerCase().includes(searchQuery.toLowerCase())
     );
+    useEffect(() => {
+    fetchModules('tool');
+}, []);
 
     if (loading) return (
         <div className="h-[60vh] flex flex-col items-center justify-center gap-4">

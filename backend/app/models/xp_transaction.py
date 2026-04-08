@@ -1,31 +1,39 @@
-from datetime import datetime
-from app.core.extensions import db
+# app/models/xp_transaction.py
 
-class XPTransaction(db.Model):
-    """
-    Model for recording individual XP awards triggered by module completions.
-    """
-    __tablename__ = 'xp_transactions'
+from sqlalchemy import Column, Integer, DateTime, ForeignKey, String, Index
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    module_id = db.Column(db.Integer, db.ForeignKey('modules.id'), nullable=True) # Optional, can be null if rewarded from platform events
-    xp_awarded = db.Column(db.Integer, nullable=False)
-    difficulty = db.Column(db.String(50), nullable=True)
-    reason = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+from app.core.database import Base
+
+
+class XPTransaction(Base):
+    __tablename__ = "xp_transactions"
+
+    id = Column(Integer, primary_key=True)
+
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    module_id = Column(Integer, ForeignKey("modules.id"), nullable=True)
+
+    xp_awarded = Column(Integer, nullable=False)
+    # anti-duplicate protection
+    unique_hash = Column(String(255), unique=True, index=True)
+
+    # Why XP was given
+    source = Column(String(50), nullable=False, index=True)  # game | quest | system | bonus
+
+    # Optional description
+    reason = Column(String(255))
+
+    created_at = Column(DateTime, default=func.now(), index=True)
 
     # Relationships
-    user = db.relationship('User', backref=db.backref('xp_transactions', lazy=True))
-    module = db.relationship('Module', backref=db.backref('xp_transactions', lazy=True))
+    user = relationship("User", backref="xp_transactions")
+    module = relationship("Module", backref="xp_transactions")
 
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "user_id": self.user_id,
-            "module_id": self.module_id,
-            "xp_awarded": self.xp_awarded,
-            "difficulty": self.difficulty,
-            "reason": self.reason,
-            "created_at": self.created_at.isoformat() if self.created_at else None
-        }
+    __table_args__ = (
+        Index("idx_xp_user_time", "user_id", "created_at"),
+    )
+
+    def __repr__(self):
+        return f"<XPTransaction user={self.user_id} xp={self.xp_awarded} source={self.source}>"

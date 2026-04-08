@@ -1,7 +1,8 @@
+//frontend/src/components/Module/ModuleLoader.jsx
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useModuleStore } from '../../store/moduleStore.js';
-import { moduleRegistry } from '../../registry/ModuleRegistry';
+import { moduleRegistry } from '../../registry/moduleRegistry.js';
 import { Loader2, AlertCircle } from 'lucide-react';
 import ToolLayout from '../../app/layout/Module/ToolLayout.jsx';
 import GameEngine from '../../engine/GameEngine.jsx';

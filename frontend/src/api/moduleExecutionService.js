@@ -7,16 +7,21 @@ import apiClient from './apiClient';
  * @param {object} payload - The execution payload (e.g., config, input data)
  * @returns {Promise<object>} The execution result, including any lifecycle events like XP
  */
-export const ModuleExecutionService = {
-    execute: async (slug, payload) => {
-        try {
+import { useAuthStore } from '../store/authStore';
+
+    export const ModuleExecutionService = {
+        execute: async (slug, payload) => {
+
+            const token = useAuthStore.getState().token;
+
+            // 🚫 HARD BLOCK
+            if (!token || token.split('.').length !== 3) {
+                console.error("🚨 BLOCKED: Invalid token before execution");
+                throw new Error("AUTH_NOT_READY");
+            }
+
             const { data } = await apiClient.post(`/modules/execute/${slug}`, payload);
             return data;
-        } catch (err) {
-            console.error(`ModuleExecutionService error for ${slug}:`, err);
-            throw err;
         }
-    }
-};
-
+    };
 export default ModuleExecutionService;

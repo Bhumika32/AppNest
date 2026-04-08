@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath('.'))
 from app import create_app
 from sqlalchemy.orm import Session
 from app.domain.lifecycle_service import LifecycleService
-from app.domain.progression_service import ProgressionService
+#from app.domain.progression_service import ProgressionService
 from app.models.user import User
 
 app = create_app()

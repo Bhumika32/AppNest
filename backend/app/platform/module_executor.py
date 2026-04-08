@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 class ModuleExecutor:
 
-    module_key = None
+    module_id = None
 
     def execute(self, payload: dict, user) -> ModuleResult:
         """

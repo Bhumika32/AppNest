@@ -125,7 +125,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class SnakeExecutor(ModuleExecutor):
-    module_key = "hungry-snake"
+    module_key = "SnakeGame"
 
     def execute(self, payload: dict, user) -> ModuleResult:
         logger.info(f"Executing Hungry Snake game for user: {user.id}")

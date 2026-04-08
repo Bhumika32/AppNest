@@ -1,16 +1,24 @@
-from app.core.extensions import db
+# app/models/role.py
 
-class Role(db.Model):
-    """
-    Role model for RBAC.
-    Roles: USER, ADMIN, SUPER_ADMIN
-    """
+from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from app.core.database import Base
+
+
+class Role(Base):
     __tablename__ = "roles"
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(20), unique=True, nullable=False)
+    id = Column(Integer, primary_key=True)
 
-    users = db.relationship("User", backref="role", lazy=True)
+    # e.g. USER, ADMIN, SUPER_ADMIN
+    name = Column(String(50), unique=True, nullable=False)
+
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Relationships
+    users = relationship("User", back_populates="role")
 
     def __repr__(self):
         return f"<Role {self.name}>"

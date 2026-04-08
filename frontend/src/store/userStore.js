@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { UserService } from '../api/api';
+import { useUIStore } from './uiStore';
 
 export const useUserStore = create((set) => ({
     xp: 0,
@@ -26,12 +27,17 @@ export const useUserStore = create((set) => ({
             const currentLevel = data.level || 1;
             const computedNextLevelXp = Math.floor(100 + Math.pow(currentLevel, 1.5) * 40);
 
+            if (data.theme) {
+                useUIStore.getState().setTheme(data.theme);
+            }
+
             set({
                 xp: data.xp || 0,
                 level: currentLevel,
                 nextLevelXp: computedNextLevelXp,
                 rank: data.rank || '#???',
                 title: data.title || 'CYBER SCOUT',
+                theme: data.theme || 'midnight',
                 uptime: data.uptime || '0h',
                 performanceHistory: data.performance_history || [
                     { day: 'MON', xp: 2400 },

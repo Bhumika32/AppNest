@@ -1,6 +1,7 @@
 """
-backend/app/main.py
-Main FastAPI entrypoint for AppNest.
+File: backend/app/main.py
+
+Clean FastAPI + Socket.IO integration for AppNest
 """
 
 import uuid
@@ -9,98 +10,104 @@ import logging
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.config import settings
 
-from sqlalchemy.orm import Session
-from typing import Generator
+from app.core.config import settings
+from app.core.extensions import sio
+from app.core.database import Base, engine, SessionLocal
+from app.platform.module_registry import ModuleRegistry
+
+from app.api.routes.auth_routes import auth_router
 
 import socketio
-import app.core.database as get_db
-from app.core.extensions import engine, Base, SessionLocal
-from app.platform.module_registry import ModuleRegistry
-from app.api.routes.ws_events import sio
 
 # ---------------------------------------------------------------------
-# FastAPI App
+
+# CREATE FASTAPI APP (PRIMARY HTTP APP)
+
 # ---------------------------------------------------------------------
 
-app = FastAPI(
-    title="AppNest API",
-    version="2.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+fastapi_app = FastAPI(
+title="AppNest API",
+version="2.0.0",
+docs_url="/docs",
+redoc_url="/redoc"
 )
 
 # ---------------------------------------------------------------------
-# DB Dependency (for FastAPI style endpoints if needed)
-# ---------------------------------------------------------------------
 
-def get_db() -> Generator[Session, None, None]:
-
-    session = SessionLocal()
-
-    try:
-        yield session
-    finally:
-        session.close()
-
+# SOCKET.IO SERVER (REAL-TIME LAYER)
 
 # ---------------------------------------------------------------------
-# Startup
+
+from app.api.routes.ws_events import sio
+
+# Wrap FastAPI inside Socket.IO ASGI app
+
+app = socketio.ASGIApp(
+sio,
+other_asgi_app=fastapi_app
+)
+
 # ---------------------------------------------------------------------
 
-@app.on_event("startup")
+# ROOT ENDPOINT (DEBUG PURPOSE)
+
+# ---------------------------------------------------------------------
+
+@fastapi_app.get("/")
+def root():
+    return {"status": "FastAPI is working properly"}
+
+# ---------------------------------------------------------------------
+
+# STARTUP EVENT
+
+# ---------------------------------------------------------------------
+
+@fastapi_app.on_event("startup")
 async def startup_event():
-
+    
     logging.info("Starting AppNest server...")
 
-    # Create tables
+
+    # Create DB tables
     Base.metadata.create_all(bind=engine)
 
-    # Discover platform modules
+    # Discover modules
     logging.info("Discovering modules...")
     ModuleRegistry._discover_modules()
 
     logging.info("Seeding modules...")
 
-    from app.domain.module_service import ModuleService
+    from app.services.module_service import ModuleService
 
     session = SessionLocal()
-
     try:
-        ModuleService.seed_modules(session)
+        # ModuleService.seed_modules(session)
+        pass
+
     finally:
         session.close()
+
+    from app.services.notification_handlers import register_notification_handlers
+    register_notification_handlers()
 
     logging.info("Startup initialization completed.")
 
 
 # ---------------------------------------------------------------------
-# Middleware
+
+# REQUEST MIDDLEWARE (LOGGING + TRACE)
+
 # ---------------------------------------------------------------------
 
-@app.middleware("http")
+@fastapi_app.middleware("http")
 async def request_context_middleware(request: Request, call_next):
-
     request_id = request.headers.get("X-Request-Id", str(uuid.uuid4()))
     start_time = time.time()
 
-    request.state.request_id = request_id
 
-    # ------------------------------------------------
-    # CREATE REQUEST SCOPED DB SESSION
-    # ------------------------------------------------
-
-    session = SessionLocal()
-    #db.session = session
-
-    try:
-
-        response: Response = await call_next(request)
-
-    finally:
-        # Always close DB session
-        session.close()
+    response: Response = await call_next(request)
 
     process_time = time.time() - start_time
 
@@ -109,21 +116,24 @@ async def request_context_middleware(request: Request, call_next):
 
     return response
 
-
-# ---------------------------------------------------------------------
-# CORS
 # ---------------------------------------------------------------------
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS if hasattr(settings, "CORS_ORIGINS") else ["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+# CORS CONFIGURATION
+
+# ---------------------------------------------------------------------
+
+fastapi_app.add_middleware(
+CORSMiddleware,
+allow_origins=settings.CORS_ORIGINS if hasattr(settings, "CORS_ORIGINS") else ["*"],
+allow_credentials=True,
+allow_methods=["*"],
+allow_headers=["*"],
 )
 
 # ---------------------------------------------------------------------
-# Routers
+
+# ROUTER REGISTRATION (IMPORTANT: USE fastapi_app)
+
 # ---------------------------------------------------------------------
 
 from app.api.routes.auth_routes import auth_router
@@ -134,21 +144,10 @@ from app.api.routes.main_routes import main_router
 from app.api.routes.notification_routes import notification_router
 from app.api.routes.roast_routes import roast_router
 
-app.include_router(auth_router, prefix="/api/auth")
-app.include_router(profile_router, prefix="/api/profile")
-app.include_router(module_router, prefix="/api/modules")
-app.include_router(admin_router, prefix="/api/admin")
-app.include_router(main_router, prefix="/api")
-app.include_router(notification_router, prefix="/api/notifications")
-app.include_router(roast_router, prefix="/api/roasts")
-
-# ---------------------------------------------------------------------
-# Socket.IO Integration
-# ---------------------------------------------------------------------
-
-fastapi_app = app
-
-app = socketio.ASGIApp(
-    sio,
-    other_asgi_app=fastapi_app
-)
+fastapi_app.include_router(auth_router, prefix="/api/auth")
+fastapi_app.include_router(profile_router, prefix="/api/profile")
+fastapi_app.include_router(module_router, prefix="/api/modules")
+fastapi_app.include_router(admin_router, prefix="/api/admin")
+fastapi_app.include_router(main_router, prefix="/api")
+fastapi_app.include_router(notification_router, prefix="/api/notifications")
+fastapi_app.include_router(roast_router, prefix="/api/roasts")

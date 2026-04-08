@@ -2,7 +2,7 @@ from app.platform.module_executor import ModuleExecutor
 from app.platform.module_result import ModuleResult
 
 class CGPAExecutor(ModuleExecutor):
-    module_key = "cgpa"
+    module_key = "CGPACalculator"
     
     def execute(self, payload: dict, user) -> ModuleResult:
         metadata = payload.get("metadata", {})

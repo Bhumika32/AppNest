@@ -10,7 +10,7 @@ import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 from app import create_app
-from app.core.extensions import db
+from app.core.database import Base as db
 
 def init_db():
     """Initialize database with all tables."""

@@ -299,7 +299,7 @@ class RashiService:
 from app.platform.module_result import ModuleResult
 
 class RashiExecutor(ModuleExecutor):
-    module_key = "rashi"
+    module_key = "RashiGenerator"
 
     def execute(self, payload: dict, user) -> ModuleResult:
         metadata = payload.get("metadata", {})

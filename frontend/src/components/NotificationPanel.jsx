@@ -54,7 +54,7 @@ const NotifRow = ({ notif, onRead }) => {
                 border-b border-white/5 last:border-0`}
         >
             {/* Unread dot */}
-            {!notif.read && (
+            {!notif.is_read && (
                 <span className="absolute top-4 right-4 w-1.5 h-1.5 bg-neon-blue rounded-full animate-pulse" />
             )}
 

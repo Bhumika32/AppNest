@@ -9,7 +9,7 @@ class TranslatorExecutor(ModuleExecutor):
     This integrates with the AppNest module system using module_key.
     """
 
-    module_key = "translator"
+    module_key = "TranslatorTool"
 
     def execute(self, payload, user) -> ModuleResult:
         logger.info(f"Executing Translator tool for user: {user.id}")

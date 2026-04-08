@@ -193,7 +193,7 @@ class CurrencyService:
 from app.platform.module_result import ModuleResult
 
 class CurrencyExecutor(ModuleExecutor):
-    module_key = "currency-converter"
+    module_key = "CurrencyConverter"
 
     def execute(self, payload: dict, user) -> ModuleResult:
         logger.info(f"Executing Currency Converter for user: {user.id}")

@@ -1,71 +1,100 @@
-"""
-app/models/notification.py
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, Index
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
-User notification model for storing persistent notifications in database.
-Supports multiple notification types for a complete notification center.
-"""
-
-from datetime import datetime
-from app.core.extensions import db
+from app.core.database import Base
 
 
-class Notification(db.Model):
-    """
-    User Notification Model
-    
-    Types: 
-      - 'achievement': User unlocked an achievement
-      - 'game': Game result/stats related
-      - 'credit': Credit awarded (game win, tool completion)
-      - 'system': System announcements or maintenance
-      - 'social': Friend activity, leaderboard, mentions
-      - 'alert': Important alerts or updates
-    """
-    __tablename__ = 'notifications'
+class Notification(Base):
+    __tablename__ = "notifications"
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
-    type = db.Column(db.String(50), nullable=False, default='info')  # notification type
-    title = db.Column(db.String(255), nullable=False)
-    message = db.Column(db.Text, nullable=False)
-    read = db.Column(db.Boolean, default=False, index=True)
-    read_at = db.Column(db.DateTime, nullable=True)
-    data = db.Column(db.JSON, nullable=True)  # Extra context (e.g., game_id, achievement_id)
-    action_url = db.Column(db.String(255), nullable=True)  # Where to navigate on click
-    icon = db.Column(db.String(50), nullable=True)  # Icon name (lucide-react)
-    color = db.Column(db.String(50), nullable=True)  # Color class (neon-blue, neon-pink, etc.)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    expires_at = db.Column(db.DateTime, nullable=True)  # Auto-delete after this time
-    
-    # Relationships
-    user = db.relationship('User', backref=db.backref('notifications', cascade='all, delete-orphan'))
+    id = Column(Integer, primary_key=True)
+
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    type = Column(String(50), nullable=False)  # achievement | system | alert | social
+
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+
+    is_read = Column(Boolean, default=False, index=True)
+    read_at = Column(DateTime)
+
+    # extra context
+    data = Column(JSON)
+
+    action_url = Column(String(255))
+
+    priority = Column(String(20), default="normal")  # low | normal | high
+
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+    expires_at = Column(DateTime)
+
+    user = relationship("User")
+
+    __table_args__ = (
+        Index("idx_notification_user_read", "user_id", "is_read"),
+    )
+
+    def __repr__(self):
+        return f"<Notification user={self.user_id} type={self.type}>"
 
     def to_dict(self):
-        """Convert notification to frontend-safe dictionary."""
-
         return {
             "id": self.id,
+            "user_id": self.user_id,
             "type": self.type,
             "title": self.title,
             "message": self.message,
-
-            # frontend contract
-            "seen": self.read,
-            "timestamp": self.created_at.isoformat(),
-
-            "icon": self.icon,
-            "color": self.color,
+            "is_read": self.is_read,
+            "read_at": self.read_at.isoformat() if self.read_at else None,
             "data": self.data,
             "action_url": self.action_url,
-
-            "read_at": self.read_at.isoformat() if self.read_at else None,
-            "expires_at": self.expires_at.isoformat() if self.expires_at else None
+            "priority": self.priority,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
         }
+# # app/models/notification.py
 
-    def mark_as_read(self):
-        """Mark notification as read."""
-        self.read = True
-        self.read_at = datetime.utcnow()
+# from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, Index
+# from sqlalchemy.orm import relationship
+# from sqlalchemy.sql import func
 
-    def __repr__(self):
-        return f'<Notification {self.id} - {self.type} - {self.title}>'
+# from app.core.database import Base
+
+
+# class Notification(Base):
+#     __tablename__ = "notifications"
+
+#     id = Column(Integer, primary_key=True)
+
+#     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+#     type = Column(String(50), nullable=False)  # achievement | system | alert | social
+
+#     title = Column(String(255), nullable=False)
+#     message = Column(Text, nullable=False)
+
+#     is_read = Column(Boolean, default=False, index=True)
+#     read_at = Column(DateTime)
+
+#     # extra context
+#     data = Column(JSON)
+
+#     action_url = Column(String(255))
+
+#     priority = Column(String(20), default="normal")  # low | normal | high
+
+#     created_at = Column(DateTime, server_default=func.now(), index=True)
+#     expires_at = Column(DateTime)
+
+#     user = relationship("User")
+
+#     __table_args__ = (
+#         Index("idx_notification_user_read", "user_id", "is_read"),
+#     )
+
+#     def __repr__(self):
+#         return f"<Notification user={self.user_id} type={self.type}>"
+    
+    

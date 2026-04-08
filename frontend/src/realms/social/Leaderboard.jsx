@@ -1,3 +1,4 @@
+//frontend/src/realms/social/Leaderboard.jsx
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Medal, Target, Zap, ArrowUp, ArrowDown, Minus, Loader2 } from 'lucide-react';
@@ -48,7 +49,7 @@ const Leaderboard = () => {
         const fetchRankings = async () => {
             try {
                 const { data } = await ModuleService.getGlobalLeaderboard(20);
-                setRankings(data);
+                setRankings(data.rankings);
             } catch (err) {
                 console.error("Failed to fetch rankings", err);
             } finally {
@@ -94,14 +95,14 @@ const Leaderboard = () => {
                     ) : (
                         <div className="space-y-3">
                             <AnimatePresence>
-                                {rankings.map(p => (
-                                    <LeaderboardRow
-                                        key={p.rank}
-                                        rank={p.rank}
-                                        name={p.name}
-                                        xp={p.xp}
-                                        level={p.level}
-                                    />
+                                {Array.isArray(rankings) && rankings.map(p => (
+                                <LeaderboardRow
+                                    key={p.rank}
+                                    rank={p.rank}
+                                    name={p.username}
+                                    xp={p.total_xp}
+                                    level={p.level}
+                                />
                                 ))}
                             </AnimatePresence>
                         </div>

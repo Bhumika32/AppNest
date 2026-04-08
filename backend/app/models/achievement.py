@@ -1,16 +1,17 @@
-from datetime import datetime
-from app.core.extensions import db
+# app/models/achievement.py
+
+from sqlalchemy import Column, Integer, String, Text
+from app.core.database import Base
 
 
-class Achievement(db.Model):
-    __tablename__ = 'achievements'
+class Achievement(Base):
+    __tablename__ = "achievements"
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, nullable=False)
-    key = db.Column(db.String(120), nullable=False)
-    title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    awarded_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    id = Column(Integer, primary_key=True)
+
+    key = Column(String(100), unique=True, nullable=False)
+    title = Column(String(200), nullable=False)
+    description = Column(Text)
 
     def __repr__(self):
-        return f"<Achievement id={self.id} user_id={self.user_id} key={self.key}>"
+        return f"<Achievement {self.key}>"

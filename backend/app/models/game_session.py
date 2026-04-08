@@ -1,19 +1,34 @@
-from datetime import datetime
-from app.core.extensions import db
+# app/models/game_session.py
+
+from sqlalchemy import Column, Integer, DateTime, ForeignKey, JSON, Index
+from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
+
+from app.core.database import Base
 
 
-class GameSession(db.Model):
-    __tablename__ = 'game_sessions'
+class GameSession(Base):
+    __tablename__ = "game_sessions"
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, nullable=False)
-    game_key = db.Column(db.String(80), nullable=False)
-    score = db.Column(db.Integer, default=0, nullable=False)
-    duration_seconds = db.Column(db.Integer, nullable=True)
-    # 'metadata' is a reserved attribute name on declarative classes,
-    # so expose it as `meta` while keeping the column name as 'metadata'.
-    meta = db.Column('metadata', db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    id = Column(Integer, primary_key=True)
+
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    module_id = Column(Integer, ForeignKey("modules.id"), nullable=False, index=True)
+
+    score = Column(Integer, default=0, nullable=False)
+    duration_seconds = Column(Integer)
+
+    # structured instead of text
+    meta = Column(JSON)
+
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User")
+    module = relationship("Module")
+
+    __table_args__ = (
+        Index("idx_game_user_module", "user_id", "module_id"),
+    )
 
     def __repr__(self):
-        return f"<GameSession id={self.id} user_id={self.user_id} game={self.game_key} score={self.score}>"
+        return f"<GameSession user={self.user_id} module={self.module_id} score={self.score}>"

@@ -1,23 +1,36 @@
-from app.core.extensions import db
-from datetime import datetime
+# app/models/leaderboard.py
 
-class Leaderboard(db.Model):
-    __tablename__ = 'leaderboards'
-    id = db.Column(db.Integer, primary_key=True)
-    module_key = db.Column(db.String(50), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    top_score = db.Column(db.Integer, default=0)
-    rank = db.Column(db.Integer)
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    user = db.relationship('User', backref='rankings')
+from sqlalchemy import Column, Integer, DateTime, ForeignKey, Index
+from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
+from sqlalchemy import UniqueConstraint
 
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "module_key": self.module_key,
-            "username": self.user.username if self.user else "Unknown",
-            "top_score": self.top_score,
-            "rank": self.rank,
-            "last_updated": self.last_updated.isoformat() if self.last_updated else None
-        }
+__table_args__ = (
+    Index("idx_leaderboard_module_score", "module_id", "top_score"),
+    UniqueConstraint("user_id", "module_id", name="uq_user_module_score"),
+)
+
+from app.core.database import Base
+
+class Leaderboard(Base):
+    __tablename__ = "leaderboards"
+
+    id = Column(Integer, primary_key=True)
+
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    module_id = Column(Integer, ForeignKey("modules.id"), nullable=False, index=True)
+
+    top_score = Column(Integer, default=0, nullable=False)
+
+    last_updated = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+    module = relationship("Module")
+
+    __table_args__ = (
+    Index("idx_leaderboard_module_score", "module_id", "top_score"),
+    UniqueConstraint("user_id", "module_id", name="uq_user_module_score"),
+    )
+
+    def __repr__(self):
+        return f"<Leaderboard user={self.user_id} module={self.module_id} score={self.top_score}>"

@@ -115,7 +115,7 @@ class BMIService:
 from app.platform.module_result import ModuleResult
 
 class BMIExecutor(ModuleExecutor):
-    module_key = "bmi-calculator"
+    module_key = "BMICalculator"
 
     def execute(self, payload: dict, user) -> ModuleResult:
         meta = payload.get("metadata", {})

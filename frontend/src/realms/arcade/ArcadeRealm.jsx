@@ -61,7 +61,9 @@ const ArcadeRealm = () => {
     const loading = useModuleStore(state => state.loading);
     const games = modules.filter(m => m.type === 'game');
 
-
+    useEffect(() => {
+    fetchModules('game');
+}, []);
 
     if (loading) return (
         <div className="h-[60vh] flex flex-col items-center justify-center gap-4">

@@ -20,8 +20,8 @@ class RedisClient:
     _instance = None
     _lock = Lock()
 
-    MAX_RETRIES = 5
-    RETRY_DELAY = 1  # seconds
+    MAX_RETRIES = 2 if settings.ENV == "development" else 5
+    RETRY_DELAY = 0.5  # seconds
 
     def __new__(cls):
         if cls._instance is None:
@@ -140,77 +140,3 @@ class RedisClient:
 
 
 neural_cache = RedisClient()
-# import redis
-# import json
-# import logging
-# from app.core.config import Config
-
-# logger = logging.getLogger(__name__)
-
-# class RedisClient:
-#     _instance = None
-
-#     def __new__(cls):
-#         if cls._instance is None:
-#             cls._instance = super(RedisClient, cls).__new__(cls)
-#             cls._instance._fallback_cache = {}
-#             try:
-#                 # Attempt connection only once during startup
-#                 cls._instance.client = redis.from_url(
-#                     Config.REDIS_URL,
-#                     decode_responses=True,
-#                     socket_connect_timeout=2  # Fails fast if Redis is unavailable
-#                 )
-#                 # Ping to ensure connection is actually alive
-#                 cls._instance.client.ping()
-#                 logger.info("Connected to Neural Cache (Redis)")
-#             except Exception as e:
-#                 # Log at info/debug instead of warning spam, falling back gracefully
-#                 logger.info(f"Redis unavailable, activating in-memory fallback cache. Reason: {e}")
-#                 cls._instance.client = None
-#         return cls._instance
-
-#     def get(self, key):
-#         if not self.client:
-#             return self._fallback_cache.get(key)
-#         try:
-#             val = self.client.get(key)
-#             if val is None: return None
-#             try:
-#                 return json.loads(val)
-#             except (json.JSONDecodeError, TypeError):
-#                 return val
-#         except Exception as e:
-#             logger.debug(f"Redis get failed for {key}, using fallback: {e}")
-#             return self._fallback_cache.get(key)
-
-#     def set(self, key, value, ex=None, nx=False):
-#         if not self.client:
-#             if nx and key in self._fallback_cache:
-#                 return False
-#             self._fallback_cache[key] = value
-#             return True
-#         try:
-#             # Normalize complex objects to JSON, keep strings as is
-#             serialized = json.dumps(value) if not isinstance(value, (str, int, float, bool)) else value
-#             res = self.client.set(key, serialized, ex=ex, nx=nx)
-            
-#             # Atomic set in redis returns True if set, None if not
-#             success = bool(res)
-            
-#             if success:
-#                 self._fallback_cache[key] = value
-#             return success
-#         except Exception as e:
-#             logger.debug(f"Redis set failed for {key}, updating fallback: {e}")
-#             if nx and key in self._fallback_cache:
-#                 return False
-#             self._fallback_cache[key] = value
-#             return True
-#     def delete(self, key):
-#         if self.client:
-#             self.client.delete(key)
-#         else:
-#             self._fallback_cache.pop(key, None)
-
-# neural_cache = RedisClient()

@@ -15,18 +15,18 @@ const Login = () => {
 
     const [connectionStatus, setConnectionStatus] = useState('checking');
 
-    useEffect(() => {
-        const checkConnection = async () => {
-            try {
-                await api.options('/auth/login');
-                setConnectionStatus('connected');
-            } catch (err) {
-                console.error("Connectivity Check Failed:", err);
-                setConnectionStatus('error');
-            }
-        };
-        checkConnection();
-    }, []);
+    // useEffect(() => {
+    //     const checkConnection = async () => {
+    //         try {
+    //             await api.options('/auth/login');
+    //             setConnectionStatus('connected');
+    //         } catch (err) {
+    //             console.error("Connectivity Check Failed:", err);
+    //             setConnectionStatus('error');
+    //         }
+    //     };
+    //     checkConnection();
+    // }, []);
 
     // Apply welcome theme if set (persisted by welcome page)
     useEffect(() => {

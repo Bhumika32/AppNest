@@ -76,7 +76,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class WeatherExecutor(ModuleExecutor):
-    module_key = "weather"
+    module_key = "WeatherTool"
 
     def execute(self, payload: dict, user) -> ModuleResult:
         logger.info(f"Executing Weather tool for user: {user.id}")

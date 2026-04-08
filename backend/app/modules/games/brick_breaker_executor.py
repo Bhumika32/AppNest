@@ -114,7 +114,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class BrickBreakerExecutor(ModuleExecutor):
-    module_key = "brick-breaker"
+    module_key = "BrickBreakerGame"
 
     def execute(self, payload: dict, user) -> ModuleResult:
         logger.info(f"Executing Brick Breaker for user: {user.id}")

@@ -1,3 +1,5 @@
+//frontend/src/engine/GameEngine.jsx
+
 import React, { useState, useEffect } from 'react';
 import { useModuleStore } from '../store/moduleStore.js';
 import GameSetupModal from './GameSetupModal.jsx';
@@ -18,10 +20,9 @@ const GameEngine = React.memo(({ module, children }) => {
 
     const sessionStartedRef = React.useRef(false);
     const completedRef = React.useRef(false);
-    const engineRef = React.useRef(null);
     const moduleInstanceRef = React.useRef(null);
 
-    const [engineState, setEngineState] = useState('SETUP'); // SETUP, PLAYING, REWARD
+    const [engineState, setEngineState] = useState('SETUP');
     const [config, setConfig] = useState(null);
     const [xpData, setXpData] = useState(null);
     const [sessionStart, setSessionStart] = useState(null);
@@ -33,20 +34,32 @@ const GameEngine = React.memo(({ module, children }) => {
     useEffect(() => {
         if (sessionStartedRef.current) return;
 
-        // If no setup needs to be done based on capabilities, skip directly to PLAYING
         const caps = module.capabilities || {};
-        if (!caps.supportsDifficulty && !caps.supportsAI && !caps.supportsPVP) {
+
+        if (caps.requiresSetup === false) {
             handleStart({});
+        } else {
+            setEngineState('SETUP');
         }
-    }, [module.id]); // Only depend on internal stable ID
+    }, [module.id]);
 
     const handleStart = async (selectedConfig) => {
         if (sessionStartedRef.current && engineState !== 'SETUP') return;
+
         sessionStartedRef.current = true;
 
         setConfig(selectedConfig);
         setSessionStart(Date.now());
+
         const id = await trackLaunch(module.id);
+
+        // 🚨 CRITICAL: ensure session exists
+        if (!id) {
+            console.error("Failed to create session");
+            sessionStartedRef.current = false;
+            return;
+        }
+
         setEntryId(id);
         setEngineState('PLAYING');
     };
@@ -57,18 +70,17 @@ const GameEngine = React.memo(({ module, children }) => {
 
         const duration = Math.floor((Date.now() - sessionStart) / 1000);
 
-        // Finalize analytics tracking
-        if (entryId) {
-            await trackEnd(entryId, duration);
-        }
-
-        // Trigger lifecycle complete
         try {
+            if (entryId) {
+                await trackEnd(entryId, duration);
+            }
+
             const res = await ModuleExecutionService.execute(module.slug, {
                 module_id: module.id,
-                duration: duration,
+                duration,
                 score: resultData.score || 0,
-                difficulty: config?.difficulty || 'EASY',
+                mode: (config?.mode || 'SOLO').toLowerCase(),
+                difficulty: (config?.difficulty || 'EASY').toLowerCase(),
                 result: resultData.win ? 'win' : (resultData.result || 'completed'),
                 metadata: resultData.metadata,
                 entry_id: entryId,
@@ -84,13 +96,11 @@ const GameEngine = React.memo(({ module, children }) => {
 
             fetchDashboard();
 
-            // Show roast via in-game overlay (speech bubble style)
             if (res?.roast) {
                 setRoast({ active: true, message: res.roast });
                 setTimeout(() => setRoast(prev => ({ ...prev, active: false })), 5000);
             }
 
-            // Show mentor tip via global overlay (after roast clears)
             if (res?.advice) {
                 setTimeout(() => {
                     showOverlay({
@@ -102,6 +112,7 @@ const GameEngine = React.memo(({ module, children }) => {
                     });
                 }, res?.roast ? 5500 : 0);
             }
+
         } catch (e) {
             console.error("Failed to complete module", e);
             setEngineState('SETUP');
@@ -111,6 +122,7 @@ const GameEngine = React.memo(({ module, children }) => {
     const showRoast = React.useCallback((eventCategory) => {
         const msg = personalityEngine.getGameRoast(eventCategory);
         if (!msg) return;
+
         setRoast({ active: true, message: msg });
         setTimeout(() => setRoast(prev => ({ ...prev, active: false })), 3500);
     }, []);

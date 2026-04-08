@@ -1,69 +1,44 @@
-"""
-app/models/user.py
+# app/models/user.py
 
-This module defines the User database model.
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
-Key responsibilities:
-- Store user identity data (username, email)
-- Store password securely as a hash (never plain text)
-- Provide helper methods for setting/checking passwords
-"""
-
-from app.core.extensions import db
+from app.core.database import Base
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
-class User(db.Model):
-    """
-    User model used for authentication and identity management.
-
-    Notes:
-    - __tablename__ ensures consistent table naming in the database.
-    - created_at is useful for auditing / sorting by registration time.
-    """
-
+class User(Base):
     __tablename__ = "users"
 
-    # Primary key
-    id = db.Column(db.Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
 
-    # Unique identity fields
-    username = db.Column(db.String(50), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    
-    # RBAC
-    role_id = db.Column(db.Integer, db.ForeignKey("roles.id"), nullable=False, default=1)
-    
-    # Account verification flag (email OTP verification)
-    is_verified = db.Column(db.Boolean, default=False, nullable=False)
-    # Password hash storage (DO NOT store plain passwords)
-    password_hash = db.Column(db.String(255), nullable=False)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    email = Column(String(120), unique=True, nullable=False, index=True)
 
-    # Profile additions
-    avatar_url = db.Column(db.String(255), nullable=True)
-    bio = db.Column(db.Text, nullable=True)
+    role_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
 
-    # Timestamp for user creation
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    password_hash = Column(String(255), nullable=False)
+
+    is_verified = Column(Boolean, default=False, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)  # 🔥 important
+
+   
+
+    avatar_url = Column(String(255))
+    bio = Column(String(500))
+
+    created_at = Column(DateTime, server_default=func.now())
+    deleted_at = Column(DateTime)
+    last_login_at = Column(DateTime, index=True)  # 🔥 important
 
     # Relationships
-    sessions = db.relationship("Session", backref="user", lazy=True, cascade="all, delete-orphan")
-    otp_tokens = db.relationship("OTPToken", backref="user", lazy=True, cascade="all, delete-orphan")
-    # Note: User.role is automatically created as a backref from Role.users relationship
-
-    def set_password(self, password: str) -> None:
-        """
-        Hash and store the password.
-
-        This method ensures passwords are always stored securely.
-        """
+    role = relationship("Role", back_populates="users")
+    sessions = relationship("Session", cascade="all, delete-orphan")
+    otp_tokens = relationship("OTPToken", back_populates="user", cascade="all, delete-orphan")
+    progression = relationship("UserProgression", uselist=False, back_populates="user")
+    def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password: str) -> bool:
-        """
-        Verify a password against the stored password hash.
-
-        Returns:
-            bool: True if password is correct, otherwise False
-        """
         return check_password_hash(self.password_hash, password)

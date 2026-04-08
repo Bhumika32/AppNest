@@ -1,51 +1,68 @@
-"""
-File: app/schemas/module_schema.py
-
-Module + leaderboard schemas.
-"""
+# File: app/schemas/module_schema.py
 
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+
+# -----------------------------
+# MODULE
+# -----------------------------
 
 class ModuleResponse(BaseModel):
-    """Basic module information."""
-id: int
-name: str
-slug: str
-type: str
-is_active: bool
+    id: int
+    name: str
+    slug: str
+    component_key: str
+    type: str
+    is_active: bool
+    description: Optional[str] = None,
+    capabilities: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
+
 
 class ModuleListResponse(BaseModel):
-    """Response for listing modules."""
-modules: List[ModuleResponse]
+    modules: List[ModuleResponse]
+
 
 # -----------------------------
-
-# LEADERBOARD
-
+# GLOBAL LEADERBOARD
 # -----------------------------
 
-class LeaderboardEntry(BaseModel):
-    """Leaderboard entry for a user."""
-username: str
-total_xp: int
-level: int
+class GlobalLeaderboardEntry(BaseModel):
+    username: str
+    total_xp: int
+    level: int
+    rank: int
 
-class LeaderboardResponse(BaseModel):
-    """Response for the leaderboard."""
-rankings: List[LeaderboardEntry]
+
+class GlobalLeaderboardResponse(BaseModel):
+    rankings: List[GlobalLeaderboardEntry]
+
 
 # -----------------------------
+# MODULE LEADERBOARD
+# -----------------------------
 
+class ModuleLeaderboardEntry(BaseModel):
+    username: str
+    top_score: int
+    rank: int
+
+
+class ModuleLeaderboardResponse(BaseModel):
+    rankings: List[ModuleLeaderboardEntry]
+
+
+# -----------------------------
 # ANALYTICS TRACKING
-
 # -----------------------------
 
 class StartTrackingResponse(BaseModel):
-    """Response for starting tracking."""
-message: str
-entry_id: int
+    message: str
+    entry_id: int
+
 
 class SimpleMessageResponse(BaseModel):
-    """Simple message response."""
-message: str
+    message: str
+    

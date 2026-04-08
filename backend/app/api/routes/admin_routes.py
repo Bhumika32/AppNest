@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session as DBSession
 
-from app.domain.analytics_service import AnalyticsService
+from app.services.analytics_service import AnalyticsService
 from app.models.module import Module
 from app.core.redis_client import neural_cache
-from app.utils.auth_decorators import get_admin_user
+from app.api.deps.auth import get_admin_user
 from app.models.user import User
 from app.core.database import get_db
 
@@ -55,11 +55,9 @@ async def update_module_status(
 @admin_router.get("/analytics/overview")
 async def get_overview(
     db: DBSession = Depends(get_db),
-    admin: User = Depends(get_admin_user)
+    _ = Depends(get_admin_user)
 ):
-
-    cache_key = "admin:analytics:overview"
-
+    cache_key = "app:admin:analytics:overview"
     stats = neural_cache.get(cache_key)
 
     if not stats:
@@ -76,11 +74,9 @@ async def get_overview(
 @admin_router.get("/analytics/users")
 async def get_user_analytics(
     db: DBSession = Depends(get_db),
-    admin: User = Depends(get_admin_user)
+    _ = Depends(get_admin_user)
 ):
-
-    cache_key = "admin:analytics:users"
-
+    cache_key = "app:admin:analytics:users"
     user_data = neural_cache.get(cache_key)
 
     if not user_data:
@@ -97,11 +93,9 @@ async def get_user_analytics(
 @admin_router.get("/analytics/games")
 async def get_game_analytics(
     db: DBSession = Depends(get_db),
-    admin: User = Depends(get_admin_user)
+    _ = Depends(get_admin_user)
 ):
-
-    cache_key = "admin:analytics:games"
-
+    cache_key = "app:admin:analytics:games"
     game_data = neural_cache.get(cache_key)
 
     if not game_data:
@@ -118,11 +112,9 @@ async def get_game_analytics(
 @admin_router.get("/analytics/tools")
 async def get_tool_analytics(
     db: DBSession = Depends(get_db),
-    admin: User = Depends(get_admin_user)
+    _ = Depends(get_admin_user)
 ):
-
-    cache_key = "admin:analytics:tools"
-
+    cache_key = "app:admin:analytics:tools"
     tool_data = neural_cache.get(cache_key)
 
     if not tool_data:
@@ -132,72 +124,21 @@ async def get_tool_analytics(
     return tool_data
 
 
-# from fastapi import APIRouter, Depends, HTTPException, status, Body
-# from app.domain.analytics_service import AnalyticsService
-# from app.models.module import Module
-# from sqlalchemy.orm import Session as DBSession
-# from app.core.redis_client import neural_cache
-# from app.utils.auth_decorators import get_admin_user
-# from app.models.user import User
-# from app.core.database import get_db
+# ---------------------------------------------------------
+# ANALYTICS: ENGAGEMENT
+# ---------------------------------------------------------
 
-# admin_router = APIRouter()
+@admin_router.get("/analytics/engagement")
+async def get_engagement_analytics(
+    db: DBSession = Depends(get_db),
+    _ = Depends(get_admin_user)
+):
+    """Dynamic engagement metrics for the admin dashboard."""
+    cache_key = "app:admin:analytics:engagement"
+    engagement_data = neural_cache.get(cache_key)
 
-# @admin_router.get("/modules")
-# async def get_admin_modules(
-#     db: DBSession = Depends(get_db),
-#     admin: User = Depends(get_admin_user)):
-#     """Get all registered modules for admin management."""
-#     modules = db.query(Module).all()
-#     return [m.to_dict() for m in modules]
+    if not engagement_data:
+        engagement_data = AnalyticsService.get_engagement_stats(db)
+        neural_cache.set(cache_key, engagement_data, ex=300)
 
-
-# @admin_router.patch("/modules/{id}")
-# async def update_module_status( db: DBSession = Depends(get_db), data: dict = Body(...), admin: User = Depends(get_admin_user)):
-#     """Enable/disable or update module metadata."""
-#     module = db.get(Module, id)
-#     if not module:
-#         raise HTTPException(status_code=404, detail="Module not found")
-
-#     if 'is_active' in data:
-#         module.is_active = data['is_active']
-    
-#     db.flush()
-#     return module.to_dict()
-
-# @admin_router.get('/analytics/overview')
-# async def get_overview(admin: User = Depends(get_admin_user)):
-#     cache_key = "admin:analytics:overview"
-#     stats = neural_cache.get(cache_key)
-#     if not stats:
-#         stats = AnalyticsService.get_platform_stats()
-#         neural_cache.set(cache_key, stats, ex=300)
-#     return stats
-
-# @admin_router.get('/analytics/users')
-# async def get_user_analytics(admin: User = Depends(get_admin_user)):
-#     cache_key = "admin:analytics:users"
-#     user_data = neural_cache.get(cache_key)
-#     if not user_data:
-#         user_data = AnalyticsService.get_user_growth_data()
-#         neural_cache.set(cache_key, user_data, ex=300)
-#     return user_data
-
-# @admin_router.get('/analytics/games')
-# async def get_game_analytics(admin: User = Depends(get_admin_user)):
-#     cache_key = "admin:analytics:games"
-#     game_data = neural_cache.get(cache_key)
-#     if not game_data:
-#         game_data = AnalyticsService.get_game_popularity()
-#         neural_cache.set(cache_key, game_data, ex=300)
-#     return game_data
-
-# @admin_router.get('/analytics/tools')
-# async def get_tool_analytics(admin: User = Depends(get_admin_user)):
-#     cache_key = "admin:analytics:tools"
-#     tool_data = neural_cache.get(cache_key)
-#     if not tool_data:
-#         tool_data = AnalyticsService.get_tool_usage()
-#         neural_cache.set(cache_key, tool_data, ex=300)
-#     return tool_data
-
+    return engagement_data

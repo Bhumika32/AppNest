@@ -15,16 +15,31 @@ from typing import Optional, List, Dict
 
 class ProfileResponse(BaseModel):
     """Basic user profile information."""
-id: int
-username: str
-email: str
-first_name: Optional[str]
-last_name: Optional[str]
-avatar_url: Optional[str]
-bio: Optional[str]
-joined_date: str
+    id: int
+    username: str
+    email: str
+    first_name: Optional[str]
+    last_name: Optional[str]
+    avatar_url: Optional[str]
+    bio: Optional[str]
+    joined_date: str
 
 # -----------------------------
+#PERFORMANCE HISTORY ITEM
+# -----------------------------
+class PerformanceItem(BaseModel):
+    day: str
+    xp: int
+
+# -----------------------------
+# ActIVITY ITEM 
+# -----------------------------
+class ActivityItem(BaseModel):
+    type: str
+    description: str
+    module: Optional[str]
+    score: Optional[int]
+    dare: Optional[str]
 
 # STATISTICS
 
@@ -32,12 +47,12 @@ joined_date: str
 
 class StatisticsResponse(BaseModel):
     """User profile statistics."""
-games_played: int
-tools_used: int
-total_roasts: int
-account_age_days: int
-credits: int
-performance_history: List[Dict]
+    games_played: int
+    tools_used: int
+    total_roasts: int
+    account_age_days: int
+    credits: int
+    performance_history: List[PerformanceItem]
 
 # -----------------------------
 
@@ -47,9 +62,9 @@ performance_history: List[Dict]
 
 class FullProfileResponse(BaseModel):
     """Comprehensive profile response with statistics and achievements."""
-profile: ProfileResponse
-statistics: StatisticsResponse
-achievements: List[str]
+    profile: ProfileResponse
+    statistics: StatisticsResponse
+    achievements: List[str]
 
 # -----------------------------
 
@@ -59,26 +74,27 @@ achievements: List[str]
 
 class DashboardUser(BaseModel):
     """User information for the dashboard."""
-username: str
-avatar: Optional[str]
-role: str
+    username: str
+    avatar: Optional[str]
+    role: str
 
 class DashboardQuest(BaseModel):
     """Daily quest information for the dashboard."""
-id: int
-task: str
-reward: str
-progress: int
-color: str
+    id: int
+    task: str
+    reward: str
+    progress: int
+    color: str
 
 class DashboardResponse(BaseModel):
     """Dashboard response containing user and activity information."""
-xp: int
-level: int
-rank: str
-title: str
-uptime: str
-performance_history: List[Dict]
-recent_activity: List[Dict]
-daily_quests: List[DashboardQuest]
-user: DashboardUser
+    xp: int
+    level: int
+    rank: str
+    theme: str = "default"
+    title: str
+    uptime: str
+    performance_history: List[PerformanceItem]
+    recent_activity: List[ActivityItem]
+    daily_quests: List[DashboardQuest]
+    user: DashboardUser

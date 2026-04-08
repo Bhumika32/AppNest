@@ -14,7 +14,14 @@ const useAuthStore = create(
       isInitializing: true, // App starts in initializing state
       error: null,
 
-      setToken: (token) => set({ token, isAuthenticated: !!token }),
+      setToken: (token) => {
+        const isValid = token && typeof token === 'string' && token.split('.').length === 3;
+
+        set({
+          token: isValid ? token : null,
+          isAuthenticated: isValid
+        });
+      },
       setUser: (user) => set({ user }),
 
       login: async (email, password) => {
@@ -52,6 +59,8 @@ const useAuthStore = create(
 
         try {
           // Step 1: silent refresh
+          await new Promise(res => setTimeout(res, 100)); // 🔥 stabilize
+
           const refreshResponse = await AuthService.refresh();
           const { access_token } = refreshResponse.data;
 
@@ -72,11 +81,12 @@ const useAuthStore = create(
 
         } catch (error) {
 
+          console.warn("Refresh failed (boot), not forcing logout");
+
           set({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            isInitializing: false
+              token: null,
+              isAuthenticated: false,
+              isInitializing: false
           });
 
         }
@@ -210,11 +220,13 @@ const useAuthStore = create(
         role: state.role
       }),
       onRehydrateStorage: () => (state) => {
-        // After hydration, trigger the boot flow (refresh -> me)
         if (state) {
-          state.checkAuth();
+            // 🔥 delay to avoid race condition
+            setTimeout(() => {
+                state.checkAuth();
+            }, 200);
         }
-      }
+    }
     }
   )
 );

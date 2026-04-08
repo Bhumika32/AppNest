@@ -10,7 +10,15 @@ export const useModuleStore = create((set, get) => ({
         set({ loading: true, error: null });
         try {
             const { data } = await ModuleService.getAll(type);
-            set({ modules: data, loading: false });
+            const modulesData = Array.isArray(data) ? data : data.modules || [];
+
+            set({
+                modules: modulesData.map(m => ({
+                    ...m,
+                    capabilities: m.capabilities || {} // 🔥 ensure it's always present
+                })),
+                loading: false
+            });
         } catch (err) {
             set({ error: err.response?.data?.error || 'Failed to sync modules', loading: false });
         }
